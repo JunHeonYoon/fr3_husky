@@ -1,0 +1,99 @@
+joint_trajectory_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joint names of the system",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+    }
+  }
+  command_joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joint names to control. If left empty, ``joints`` will be used. This parameters can be used if:
+      \n\n
+        * JTC is used in a controller chain where command and state interfaces don't have same names.
+
+        * If the number of command joints is smaller than the degrees-of-freedom. For example to track the state and error of passive joints. ``command_joints`` must then be a subset of ``joints``.",
+    read_only: true,
+    validation: {
+      unique<>: null,
+    }
+  }
+  command_interfaces: {
+    type: string_array,
+    default_value: [],
+    description: "Command interfaces provided by the hardware interface for all joints",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity", "acceleration", "effort",]],
+      "joint_trajectory_controller::command_interface_type_combinations": null,
+    }
+  }
+  state_interfaces: {
+    type: string_array,
+    default_value: [],
+    description: "State interfaces provided by the hardware for all joints.",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity", "acceleration",]],
+      "joint_trajectory_controller::state_interface_type_combinations": null,
+    }
+  }
+  set_last_command_interface_value_as_state_on_activation: {
+    type: bool,
+    default_value: true,
+    description: "When set to true, the last command interface value is used as both the current state and the last commanded state upon activation. When set to false, the current state is used for both.",
+  }
+  action_monitor_rate: {
+    type: double,
+    default_value: 20.0,
+    description: "Rate to monitor status changes when the controller is executing action (``control_msgs::action::FollowJointTrajectory``)",
+    read_only: true,
+    validation: {
+      gt_eq: [0.1]
+    }
+  }
+  gains:
+    __map_joints:
+      p: {
+        type: double,
+        default_value: 0.0,
+        description: "Proportional gain :math:`k_p` for PID"
+      }
+      i: {
+        type: double,
+        default_value: 0.0,
+        description: "Integral gain :math:`k_i` for PID"
+      }
+      d: {
+        type: double,
+        default_value: 0.0,
+        description: "Derivative gain :math:`k_d` for PID"
+      }
+      u_clamp_max: {
+        type: double,
+        default_value: .inf,
+        description: "Upper output clamp."
+      }
+      u_clamp_min: {
+        type: double,
+        default_value: -.inf,
+        description: "Lower output clamp."
+      }
+      i_clamp_max: {
+        type: double,
+        default_value: .inf,
+        description: "Upper integral clamp."
+      }
+      i_clamp_min: {
+        type: double,
+        default_value: -.inf,
+        description: "Lower integral clamp."
+      }

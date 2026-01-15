@@ -1,0 +1,239 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dual_fr3">
+
+    <xacro:include filename="$(find franka_description)/robots/common/franka_arm.srdf.xacro"/>
+
+    <!-- ============================================================= -->
+
+    <!-- Should an end-effector be mounted at the flange? -->
+    <xacro:arg name="hand" default="true" />
+
+    <!-- Is base husky or just box-shaped? -->
+    <xacro:arg name="mobile" default="false"/>
+
+    <!-- Should self-collision be enabled? -->
+    <xacro:arg name="with_sc" default="true" />
+    <!-- ============================================================= -->
+
+    <xacro:franka_arm_srdf arm_id="fr3"
+                           hand="$(arg hand)"
+                           ee_id="franka_hand"
+                           no_prefix="false"
+                           arm_prefix="left_">
+    </xacro:franka_arm_srdf>
+
+    <xacro:franka_arm_srdf arm_id="fr3"
+                           hand="$(arg hand)"
+                           ee_id="franka_hand"
+                           no_prefix="false"
+                           arm_prefix="right_">
+    </xacro:franka_arm_srdf>
+
+    <!-- box shaped table as base for the Dual FR3 -->
+    <xacro:unless value="$(arg mobile)">
+        <disable_collisions link1="left_base" link2="right_base" reason="Adjacent"/>
+
+        <disable_collisions link1="left_base" link2="left_fr3_link0" reason="Adjacent"/>
+        <disable_collisions link1="left_base" link2="left_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_base" link2="left_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_base" link2="left_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_base" link2="left_fr3_link4" reason="Never"/>
+
+        <disable_collisions link1="left_base" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_base" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_base" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_base" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_base" link2="right_fr3_link4" reason="Never"/>
+
+        <disable_collisions link1="right_base" link2="right_fr3_link0" reason="Adjacent"/>
+        <disable_collisions link1="right_base" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="right_base" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="right_base" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="right_base" link2="right_fr3_link4" reason="Never"/>
+
+        <disable_collisions link1="right_base" link2="left_fr3_link0" reason="Never"/>
+        <disable_collisions link1="right_base" link2="left_fr3_link2" reason="Never"/>
+        <disable_collisions link1="right_base" link2="left_fr3_link3" reason="Never"/>
+        <disable_collisions link1="right_base" link2="left_fr3_link4" reason="Never"/>
+        <disable_collisions link1="right_base" link2="left_fr3_link6" reason="User"/>
+        <disable_collisions link1="right_base" link2="left_fr3_link1" reason="Never"/>
+
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link4" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link4" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link4" reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="right_fr3_link1" reason="Never"/>
+
+        <xacro:if value="$(arg hand)">
+            <disable_collisions link1="left_fr3_leftfinger" link2="right_fr3_rightfinger" reason="Never"/>
+            <disable_collisions link1="left_fr3_rightfinger" link2="right_fr3_leftfinger" reason="Never"/>
+            <disable_collisions link1="left_fr3_rightfinger" link2="right_fr3_rightfinger" reason="Never"/>
+        </xacro:if>
+
+    </xacro:unless>
+
+    <!-- Husky shaped table as base for the Dual FR3 -->
+    <xacro:if value="$(arg mobile)">
+        <disable_collisions link1="front_left_wheel"  link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="front_left_wheel"  link2="mobile_base"        reason="Adjacent"/>
+        <disable_collisions link1="front_left_wheel"  link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="front_left_wheel"  link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="front_left_wheel"  link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="front_right_wheel" link2="mobile_base"        reason="Adjacent"/>
+        <disable_collisions link1="front_right_wheel" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="front_right_wheel" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="front_right_wheel" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="mobile_base"       link2="rear_left_wheel"    reason="Adjacent"/>
+        <disable_collisions link1="mobile_base"       link2="rear_right_wheel"   reason="Adjacent"/>
+        <disable_collisions link1="mobile_base"       link2="top_structure_link" reason="Adjacent"/>
+        <disable_collisions link1="rear_left_wheel"   link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="rear_right_wheel"  link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="rear_left_wheel"   link2="top_structure_link" reason="Never"/>
+
+        <disable_collisions link1="left_fr3_link0" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="mobile_base"        reason="Adjacent"/>
+        <disable_collisions link1="left_fr3_link0" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="top_structure_link" reason="Default"/>
+        <disable_collisions link1="left_fr3_link1" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="left_fr3_link4" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="left_fr3_link5" link2="rear_right_wheel"   reason="Never"/>
+
+        <disable_collisions link1="right_fr3_link0" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link0" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="right_fr3_link0" link2="mobile_base"        reason="Adjacent"/>
+        <disable_collisions link1="right_fr3_link0" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="right_fr3_link0" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link0" link2="top_structure_link" reason="Default"/>
+        <disable_collisions link1="right_fr3_link1" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link1" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="right_fr3_link1" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="right_fr3_link1" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="right_fr3_link1" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link1" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link2" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link3" link2="top_structure_link" reason="Never"/>
+        <disable_collisions link1="right_fr3_link4" link2="front_left_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link4" link2="front_right_wheel"  reason="Never"/>
+        <disable_collisions link1="right_fr3_link4" link2="mobile_base"        reason="Never"/>
+        <disable_collisions link1="right_fr3_link4" link2="rear_left_wheel"    reason="Never"/>
+        <disable_collisions link1="right_fr3_link4" link2="rear_right_wheel"   reason="Never"/>
+        <disable_collisions link1="right_fr3_link5" link2="rear_left_wheel"    reason="Never"/>
+
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link0" reason="Adjacent"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link0" link2="right_fr3_link3" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link1" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link0" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link1" reason="Never"/>
+        <disable_collisions link1="left_fr3_link2" link2="right_fr3_link2" reason="Never"/>
+        <disable_collisions link1="left_fr3_link3" link2="right_fr3_link0" reason="Never"/>
+
+        <xacro:if value="$(arg hand)">
+            <disable_collisions link1="left_fr3_leftfinger" link2="right_fr3_leftfinger" reason="Never"/>
+            <disable_collisions link1="left_fr3_rightfinger" link2="right_fr3_rightfinger" reason="Never"/>
+        </xacro:if>
+    
+    </xacro:if>
+
+    <group name="dual_fr3_arm">
+        <joint name="left_fr3_joint1"/>
+        <joint name="left_fr3_joint2"/>
+        <joint name="left_fr3_joint3"/>
+        <joint name="left_fr3_joint4"/>
+        <joint name="left_fr3_joint5"/>
+        <joint name="left_fr3_joint6"/>
+        <joint name="left_fr3_joint7"/>
+        <joint name="right_fr3_joint1"/>
+        <joint name="right_fr3_joint2"/>
+        <joint name="right_fr3_joint3"/>
+        <joint name="right_fr3_joint4"/>
+        <joint name="right_fr3_joint5"/>
+        <joint name="right_fr3_joint6"/>
+        <joint name="right_fr3_joint7"/>
+    </group>
+
+     <group_state name="ready" group="dual_fr3_arm">
+      <joint name="left_fr3_joint1" value="0"/>
+      <joint name="left_fr3_joint2" value="${-pi/4}"/>
+      <joint name="left_fr3_joint3" value="0"/>
+      <joint name="left_fr3_joint4" value="${-3*pi/4}"/>
+      <joint name="left_fr3_joint5" value="0"/>
+      <joint name="left_fr3_joint6" value="${pi/2}"/>
+      <joint name="left_fr3_joint7" value="${pi/4}"/>
+      <joint name="right_fr3_joint1" value="0"/>
+      <joint name="right_fr3_joint2" value="${-pi/4}"/>
+      <joint name="right_fr3_joint3" value="0"/>
+      <joint name="right_fr3_joint4" value="${-3*pi/4}"/>
+      <joint name="right_fr3_joint5" value="0"/>
+      <joint name="right_fr3_joint6" value="${pi/2}"/>
+      <joint name="right_fr3_joint7" value="${pi/4}"/>
+    </group_state>
+    <group_state name="extended" group="dual_fr3_arm">
+      <joint name="left_fr3_joint1" value="0"/>
+      <joint name="left_fr3_joint2" value="0"/>
+      <joint name="left_fr3_joint3" value="0"/>
+      <joint name="left_fr3_joint4" value="-0.1"/>
+      <joint name="left_fr3_joint5" value="0"/>
+      <joint name="left_fr3_joint6" value="${pi/2}"/>
+      <joint name="left_fr3_joint7" value="${pi/4}"/>
+      <joint name="right_fr3_joint1" value="0"/>
+      <joint name="right_fr3_joint2" value="0"/>
+      <joint name="right_fr3_joint3" value="0"/>
+      <joint name="right_fr3_joint4" value="-0.1"/>
+      <joint name="right_fr3_joint5" value="0"/>
+      <joint name="right_fr3_joint6" value="${pi/2}"/>
+      <joint name="right_fr3_joint7" value="${pi/4}"/>
+    </group_state>
+
+</robot>
