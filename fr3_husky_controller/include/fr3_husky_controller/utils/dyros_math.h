@@ -30,6 +30,7 @@ EIGEN_MAKE_TYPEDEFS(rScalar, d, 6, 6)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 7, 7)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 8, 8)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 12, 12)
+EIGEN_MAKE_TYPEDEFS(rScalar, d, 14, 14)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 18, 18)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 28, 28)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 30, 30)
@@ -294,7 +295,7 @@ const Eigen::Matrix3d rotationCubic(double time,
                                      const Eigen::Matrix3d &rotation_0,
                                      const Eigen::Matrix3d &rotation_f);
 
-const void rotationQuinticZero(double time,
+void rotationQuinticZero(double time,
                                double time_0,
                                double time_f,
                                const Eigen::Matrix3d &rotation_0,
@@ -398,5 +399,4 @@ Eigen::Isometry3d rigidRotation(const Eigen::Vector3d& cor,
                                 const Eigen::Vector3d& axis, 
                                 double angle);
 }
-
 

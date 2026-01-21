@@ -1,4 +1,4 @@
-#include "utils/motion_primitives.h"
+#include "fr3_husky_controller/utils/motion_primitives.h"
 
 namespace primitives
 {

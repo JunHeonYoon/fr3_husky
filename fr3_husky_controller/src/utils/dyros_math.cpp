@@ -253,7 +253,7 @@ const Eigen::Matrix3d rotationCubic(double time,
 
   return result;
 }
-const void rotationQuinticZero(double time,
+void rotationQuinticZero(double time,
                                double time_0,
                                double time_f,
                                const Eigen::Matrix3d &rotation_0,
@@ -395,8 +395,7 @@ void floatGyroframe(Eigen::Isometry3d trunk, Eigen::Isometry3d reference, Eigen:
 
 Eigen::MatrixXd discreteRiccatiEquation(Eigen::MatrixXd a, Eigen::MatrixXd b, Eigen::MatrixXd r, Eigen::MatrixXd q)
 {
-  int n = a.rows(); //number of rows
-  int m = b.cols(); //number of columns
+  const Eigen::Index n = a.rows(); //number of rows
 
   Eigen::MatrixXd z11(n, n), z12(n, n), z21(n, n), z22(n, n);
 
@@ -413,8 +412,9 @@ Eigen::MatrixXd discreteRiccatiEquation(Eigen::MatrixXd a, Eigen::MatrixXd b, Ei
   z.bottomLeftCorner(n, n) = z21;
   z.bottomRightCorner(n, n) = z22;
 
-  std::vector<Eigen::VectorXd> eigVec_real(2 * n);
-  std::vector<Eigen::VectorXd> eigVec_img(2 * n);
+  const size_t eig_size = static_cast<size_t>(2 * n);
+  std::vector<Eigen::VectorXd> eigVec_real(eig_size);
+  std::vector<Eigen::VectorXd> eigVec_img(eig_size);
 
   for (int i = 0; i < 8; i++)
   {
@@ -695,8 +695,17 @@ Eigen::Matrix3d quat2Rot(const Eigen::Vector4d quat)
 
 Eigen::MatrixXd leastSquareLinear(const std::vector<double> vec, const int interval)
 {
-  double total_size;
-  double sub_size;
+  if (interval <= 0 || vec.empty())
+  {
+    return Eigen::MatrixXd();
+  }
+
+  const size_t interval_size = static_cast<size_t>(interval);
+  const size_t sub_size = vec.size() / interval_size;
+  if (sub_size == 0)
+  {
+    return Eigen::MatrixXd();
+  }
 
   Eigen::VectorXd a11, a12, a21, a22;
   Eigen::VectorXd b11, b21;
@@ -704,19 +713,19 @@ Eigen::MatrixXd leastSquareLinear(const std::vector<double> vec, const int inter
   Eigen::MatrixXd x, y;
   Eigen::MatrixXd coeff_vec;
 
-  sub_size = floor(vec.size() / interval);
-  total_size = sub_size * interval;
+  const Eigen::Index interval_e = static_cast<Eigen::Index>(interval_size);
+  const Eigen::Index sub_size_e = static_cast<Eigen::Index>(sub_size);
 
-  a11.resize(1, interval);
-  a12.resize(1, interval);
-  a21.resize(1, interval);
-  a22.resize(1, interval);
-  b11.resize(1, interval);
-  b21.resize(1, interval);
+  a11.resize(interval_e);
+  a12.resize(interval_e);
+  a21.resize(interval_e);
+  a22.resize(interval_e);
+  b11.resize(interval_e);
+  b21.resize(interval_e);
 
-  x.resize(interval, sub_size);
-  y.resize(interval, sub_size);
-  coeff_vec.resize(2, interval); //y = ax + b
+  x.resize(interval_e, sub_size_e);
+  y.resize(interval_e, sub_size_e);
+  coeff_vec.resize(2, interval_e); //y = ax + b
 
   a11.setZero();
   a12.setZero();
@@ -729,12 +738,13 @@ Eigen::MatrixXd leastSquareLinear(const std::vector<double> vec, const int inter
   y.setZero();
   coeff_vec.setZero();
 
-  for (int i = 0; i < interval; i++)
+  for (Eigen::Index i = 0; i < interval_e; i++)
   {
-    for (int j = 0; j < sub_size; j++)
+    for (Eigen::Index j = 0; j < sub_size_e; j++)
     {
-      x(i, j) = (i * sub_size + j) / 1000;
-      y(i, j) = vec[i * sub_size + j];
+      const size_t sample_index = static_cast<size_t>(i) * sub_size + static_cast<size_t>(j);
+      x(i, j) = static_cast<double>(sample_index) / 1000.0;
+      y(i, j) = vec[sample_index];
 
       a11(i) += x(i, j) * x(i, j);
       a12(i) += x(i, j);
@@ -747,7 +757,7 @@ Eigen::MatrixXd leastSquareLinear(const std::vector<double> vec, const int inter
   Eigen::Matrix2d temp_A;
   Eigen::Matrix<double, 2, 1> temp_B;
 
-  for (int i = 0; i < interval; i++)
+  for (Eigen::Index i = 0; i < interval_e; i++)
   {
     temp_A << a11(i), a12(i), a21(i), a22(i);
     temp_B << b11(i), b21(i);

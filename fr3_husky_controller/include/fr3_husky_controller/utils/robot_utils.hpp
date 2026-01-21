@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <tinyxml2.h>
+// #include <tinyxml2.h>
 #include <rclcpp/rclcpp.hpp>
 
 namespace robot_utils 
@@ -34,121 +34,6 @@ namespace robot_utils
         std::vector<std::string> command_interfaces;  ///< e.g., {"position", "velocity", "effort"}
         std::vector<std::string> state_interfaces;    ///< e.g., {"position", "velocity", "effort"}
     };
-
-    inline std::string getRobotNameFromDescription(const std::string& robot_description,
-                                                   const rclcpp::Logger& logger) 
-    {
-        std::string robot_name{};
-        tinyxml2::XMLDocument doc;
-
-        if (doc.Parse(robot_description.c_str()) != tinyxml2::XML_SUCCESS) 
-        {
-            RCLCPP_ERROR(logger, "Failed to parse robot_description");
-            return robot_name;
-        }
-
-        const tinyxml2::XMLElement* robot_elem = doc.FirstChildElement("robot");
-        if (!robot_elem) 
-        {
-            RCLCPP_ERROR(logger, "No <robot> element found in robot_description");
-            return robot_name;
-        }
-
-        const char* name_attr = robot_elem->Attribute("name");
-        if (!name_attr || std::string(name_attr).empty()) 
-        {
-            RCLCPP_ERROR(logger, "Robot name attribute missing or empty in <robot> element");
-            return robot_name;
-        }
-
-        robot_name = name_attr;
-        RCLCPP_INFO(logger, "Extracted robot name: %s", robot_name.c_str());
-        return robot_name;
-    }
-
-    // Extracts the joint names and their corresponding command and state interfaces
-    // from robot_description XML string.
-    // Populates the joint_interfaces map with
-    // key: joint name
-    // value: a JointControlInterfaces structure containing all configured
-    //        command_interface and state_interface names
-    inline bool getJointControlInterfaces(const std::string& robot_description,
-                                          const rclcpp::Logger& logger,
-                                          std::unordered_map<std::string, JointControlInterfaces>& joint_interfaces) 
-    {
-        tinyxml2::XMLDocument doc;
-        if (doc.Parse(robot_description.c_str()) != tinyxml2::XML_SUCCESS) 
-        {
-            RCLCPP_ERROR(logger, "Failed to parse robot_description");
-            return false;
-        }
-
-        const tinyxml2::XMLElement* robot_elem = doc.FirstChildElement("robot");
-        if (!robot_elem) 
-        {
-            RCLCPP_ERROR(logger, "No <robot> element found in robot_description");
-            return false;
-        }
-
-        const tinyxml2::XMLElement* ros2_control_elem = robot_elem->FirstChildElement("ros2_control");
-        if (!ros2_control_elem || std::string(ros2_control_elem->Attribute("name")) != "FrankaHardwareInterface") 
-        {
-            RCLCPP_ERROR(logger, "No FrankaHardwareInterface <ros2_control> section found");
-            return false;
-        }
-
-        joint_interfaces.clear();
-        for (const tinyxml2::XMLElement* joint_elem = ros2_control_elem->FirstChildElement("joint");
-            joint_elem != nullptr; joint_elem = joint_elem->NextSiblingElement("joint")) 
-        {
-            const char* joint_name = joint_elem->Attribute("name");
-            if (!joint_name) 
-            {
-                RCLCPP_WARN(logger, "Skipping joint with no name attribute");
-                continue;
-            } 
-            else 
-            {
-                RCLCPP_DEBUG(logger, "Found joint: %s", joint_name);
-            }
-
-            JointControlInterfaces interfaces;
-            for (const tinyxml2::XMLElement* cmd_elem = joint_elem->FirstChildElement("command_interface");
-                cmd_elem != nullptr; cmd_elem = cmd_elem->NextSiblingElement("command_interface")) 
-            {
-                const char* cmd_name = cmd_elem->Attribute("name");
-                if (cmd_name) 
-                {
-                    interfaces.command_interfaces.emplace_back(cmd_name);
-                    RCLCPP_DEBUG(logger, "Adding joint %s command_interface: %s", joint_name, cmd_name);
-                }
-            }
-            for (const tinyxml2::XMLElement* state_elem = joint_elem->FirstChildElement("state_interface");
-                state_elem != nullptr; state_elem = state_elem->NextSiblingElement("state_interface")) 
-            {
-                const char* state_name = state_elem->Attribute("name");
-                if (state_name) 
-                {
-                    interfaces.state_interfaces.emplace_back(state_name);
-                    RCLCPP_DEBUG(logger, "Adding joint %s state_interface: %s", joint_name, state_name);
-                }
-            }
-
-            if (!interfaces.command_interfaces.empty() || !interfaces.state_interfaces.empty()) 
-            {
-                joint_interfaces[joint_name] = interfaces;
-                RCLCPP_DEBUG(logger, "Extracted joint '%s': %zu command, %zu state interfaces", joint_name,
-                            interfaces.command_interfaces.size(), interfaces.state_interfaces.size());
-            }
-        }
-
-        if (joint_interfaces.empty()) 
-        {
-            RCLCPP_ERROR(logger, "No valid joints found in <ros2_control> section");
-            return false;
-        }
-        return true;
-    }
 
     /**
      * \return The map between \p t1 indices (implicitly encoded in return vector indices) to \p t2
@@ -187,4 +72,82 @@ namespace robot_utils
         return std::find(interface_type_list.begin(), interface_type_list.end(), interface_type) != interface_type_list.end();
     }
 
+    // bool poseIsFinite(const geometry_msgs::msg::Pose& pose)
+    // {
+    //     return std::isfinite(pose.position.x) &&
+    //            std::isfinite(pose.position.y) &&
+    //            std::isfinite(pose.position.z) &&
+    //            std::isfinite(pose.orientation.x) &&
+    //            std::isfinite(pose.orientation.y) &&
+    //            std::isfinite(pose.orientation.z) &&
+    //            std::isfinite(pose.orientation.w);
+    // }
+
+    // Eigen::Affine3d poseMsgToEigen(const geometry_msgs::msg::Pose& pose)
+    // {
+    //     Eigen::Quaterniond q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+    //     if (q.norm() < 1e-9)
+    //     {
+    //         q.setIdentity();
+    //     }
+    //     else
+    //     {
+    //         q.normalize();
+    //     }
+    //     Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+    //     transform.linear() = q.toRotationMatrix();
+    //     transform.translation() = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+    //     return transform;
+    // }
+
+    // geometry_msgs::msg::Pose eigenToPoseMsg(const Eigen::Affine3d& pose)
+    // {
+    //     geometry_msgs::msg::Pose msg;
+    //     msg.position.x = pose.translation().x();
+    //     msg.position.y = pose.translation().y();
+    //     msg.position.z = pose.translation().z();
+    //     Eigen::Quaterniond q(pose.linear());
+    //     q.normalize();
+    //     msg.orientation.x = q.x();
+    //     msg.orientation.y = q.y();
+    //     msg.orientation.z = q.z();
+    //     msg.orientation.w = q.w();
+    //     return msg;
+    // }
+
+    static std::string execAndCaptureStdout(const std::string& cmd)
+    {
+        // Run command and open a pipe to read its stdout.
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe)
+        {
+            throw std::runtime_error("popen() failed. Is xacro in PATH?");
+        }
+
+        // Read stdout chunk-by-chunk into a string buffer.
+        std::string output;
+        std::array<char, 4096> buffer{};
+        while (true)
+        {
+            const size_t n = std::fread(buffer.data(), 1, buffer.size(), pipe);
+            if (n > 0)
+            {
+                output.append(buffer.data(), n);
+            }
+            if (n < buffer.size())
+            {
+                // Either EOF or error.
+                break;
+            }
+        }
+
+        // Close the pipe and check the command exit status.
+        const int rc = pclose(pipe);
+        if (rc != 0)
+        {
+            throw std::runtime_error("Command failed (non-zero exit): " + cmd);
+        }
+
+        return output;
+    }
 }  // namespace robot_utils

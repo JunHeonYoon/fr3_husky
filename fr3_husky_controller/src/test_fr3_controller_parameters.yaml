@@ -1,0 +1,124 @@
+test_fr3_controller:
+  robot_name: {
+    type: string_array,
+    default_value: ["left", "right"],
+    description: "Robot name want to control (left/right)"
+  }
+  hand: {
+    type: bool,
+    default_value: true,
+    description: "Use franka hand?",
+  }
+  mobile_base: {
+    type: bool,
+    default_value: false,
+    description: "Use Husky as base?",
+  }
+  dyros_robot_controller:
+    joint:
+      joint_kp: {
+        type: double_array,
+        # default_value: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0,
+        #                 600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0],
+        description: "Joint-space proportional gains (size 7*num_robot)",
+      }
+      joint_kv: {
+        type: double_array,
+        # default_value: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0,
+        #                 30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0],
+        description: "Joint-space derivative gains (size 7*num_robot)",
+      }
+      qpik_damping: {
+        type: double_array,
+        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        description: "QPIK damping weights (size 7*num_robot)",
+      }
+      qpid_vel_damping: {
+        type: double_array,
+        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        description: "QPID velocity damping weights (size 7*num_robot)",
+      }
+      qpid_acc_damping: {
+        type: double_array,
+        # default_value: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
+        #                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
+        description: "QPID acceleration damping weights (size 7*num_robot)",
+      }
+    task:
+      link_names: {
+        type: string_array,
+        # default_value: ["left_fr3_hand_tcp", "right_fr3_hand_tcp"],
+        description: "Task link names",
+      }
+      qpik_tracking: {
+        type: double_array,
+        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        description: "QPIK tracking weights (size 6 * link_names)",
+      }
+      qpid_tracking: {
+        type: double_array,
+        # default_value: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
+        #                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
+        description: "QPID tracking weights (size 6 * link_names)",
+      }
+      task_kp: {
+        type: double_array,
+        # default_value: [400.0, 400.0, 400.0, 400.0, 400.0, 400.0,
+        #                 400.0, 400.0, 400.0, 400.0, 400.0, 400.0],
+        description: "Task-space proportional gains (size 6 * link_names)",
+      }
+      task_kv: {
+        type: double_array,
+        # default_value: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0,
+        #                 40.0, 40.0, 40.0, 40.0, 40.0, 40.0],
+        description: "Task-space derivative gains (size 6 * link_names)",
+      }
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joint names of the system",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+    }
+  }
+  command_interfaces: {
+    type: string_array,
+    default_value: [],
+    description: "Command interfaces provided by the hardware interface for all joints",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity", "acceleration", "effort",]],
+    }
+  }
+  state_interfaces: {
+    type: string_array,
+    default_value: [],
+    description: "State interfaces provided by the hardware for all joints.",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity", "acceleration",]],
+    }
+  }
+  set_last_command_interface_value_as_state_on_activation: {
+    type: bool,
+    default_value: true,
+    description: "When set to true, the last command interface value is used as both the current state and the last commanded state upon activation. When set to false, the current state is used for both.",
+  }
+  # action_monitor_rate: {
+  #   type: double,
+  #   default_value: 20.0,
+  #   description: "Rate to monitor status changes when the controller is executing an action goal",
+  #   read_only: true,
+  #   validation: {
+  #     gt_eq: [0.1]
+  #   }
+  # }

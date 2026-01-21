@@ -1,0 +1,143 @@
+/**:
+  controller_manager:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      thread_priority: 98
+
+      test_left_fr3_controller:
+        type: fr3_husky_controller/TestFR3Controller
+
+      test_right_fr3_controller:
+        type: fr3_husky_controller/TestFR3Controller
+
+      test_dual_fr3_controller:
+        type: fr3_husky_controller/TestFR3Controller
+
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+
+      # franka_robot_state_broadcaster:
+      #   type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
+  # franka_robot_state_broadcaster:
+  #   ros__parameters:
+  #     lock_try_count: 5 # Number of attempts to acquire the lock in a single on_update()
+  #     lock_sleep_interval: 5 # microseconds sleep between attempts
+  #     lock_log_error: false #  Log error if lock acquisition fails - false == do not log  
+  #     lock_update_success: true # return update OK, although lock fails (no update occurs)
+      
+  test_left_fr3_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["left"]
+      hand: true
+      mobile_base: false
+      dyros_robot_controller:
+        joint:
+          joint_kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
+          joint_kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+          qpik_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_vel_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_acc_damping: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+        task:
+          link_names: ["left_fr3_hand_tcp"] 
+          qpik_tracking: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_tracking: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+          task_kp: [400.0, 400.0, 400.0, 400.0, 400.0, 400.0]
+          task_kv: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0]
+      command_interfaces:
+        - effort
+      state_interfaces:
+        - position
+        - velocity
+      joints:
+        - left_fr3_joint1
+        - left_fr3_joint2
+        - left_fr3_joint3
+        - left_fr3_joint4
+        - left_fr3_joint5
+        - left_fr3_joint6
+        - left_fr3_joint7
+
+  test_right_fr3_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["right"]
+      hand: true
+      mobile_base: false
+      dyros_robot_controller:
+        joint:
+          joint_kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
+          joint_kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+          qpik_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_vel_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_acc_damping: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+        task:
+          link_names: ["right_fr3_hand_tcp"] 
+          qpik_tracking: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          qpid_tracking: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+          task_kp: [400.0, 400.0, 400.0, 400.0, 400.0, 400.0]
+          task_kv: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0]
+      command_interfaces:
+        - effort
+      state_interfaces:
+        - position
+        - velocity
+      joints:
+        - right_fr3_joint1
+        - right_fr3_joint2
+        - right_fr3_joint3
+        - right_fr3_joint4
+        - right_fr3_joint5
+        - right_fr3_joint6
+        - right_fr3_joint7
+  
+  test_dual_fr3_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["left", "right"]
+      hand: true
+      mobile_base: false
+      dyros_robot_controller:
+        joint:
+          joint_kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0,   # left
+                     600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]   # right
+          joint_kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0,          # left
+                     30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]          # right
+          qpik_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,            # left
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]            # right
+          qpid_vel_damping: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,        # left
+                             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]        # right
+          qpid_acc_damping: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, # left
+                             10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0] # right
+        task:
+          link_names: ["left_fr3_hand_tcp", "right_fr3_hand_tcp"] 
+          qpik_tracking: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,           # left
+                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0]           # right
+          qpid_tracking: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0,     # left
+                          10.0, 10.0, 10.0, 10.0, 10.0, 10.0]     # right
+          task_kp: [400.0, 400.0, 400.0, 400.0, 400.0, 400.0,     # left
+                    400.0, 400.0, 400.0, 400.0, 400.0, 400.0]     # right 
+          task_kv: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0,           # left
+                    40.0, 40.0, 40.0, 40.0, 40.0, 40.0]           # right 
+
+      command_interfaces:
+        - effort
+      state_interfaces:
+        - position
+        - velocity
+      joints:
+        - left_fr3_joint1
+        - left_fr3_joint2
+        - left_fr3_joint3
+        - left_fr3_joint4
+        - left_fr3_joint5
+        - left_fr3_joint6
+        - left_fr3_joint7
+        - right_fr3_joint1
+        - right_fr3_joint2
+        - right_fr3_joint3
+        - right_fr3_joint4
+        - right_fr3_joint5
+        - right_fr3_joint6
+        - right_fr3_joint7
