@@ -5,16 +5,16 @@
 
     <!-- ============================================================= -->
     <!-- Which arm: left or right -->
-    <xacro:arg name="side" default=""/>
+    <xacro:arg name="side" default="left"/>
 
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
     <!-- Is base husky or just box-shaped? -->
-    <xacro:arg name="mobile" default="true"/>
+    <xacro:arg name="mobile" default="false"/>
 
     <!-- Should self-collision be enabled? -->
-    <xacro:arg name="with_sc" default="true" />
+    <xacro:arg name="with_sc" default="false" />
     <!-- ============================================================= -->
 
     <!-- Derived arm_prefix from side -->

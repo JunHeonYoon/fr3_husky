@@ -8,13 +8,13 @@
 
     <!-- ============================================================= -->
     <!-- Which arm: left or right -->
-    <xacro:arg name="side" default=""/>
+    <xacro:arg name="side" default="left"/>
 
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
     <!-- Should self-collision be enabled? -->
-    <xacro:arg name="with_sc" default="true" />
+    <xacro:arg name="with_sc" default="false" />
 
     <!-- Is the robot being controlled with ros2_control?" -->
     <xacro:arg name="ros2_control" default="false" />
@@ -26,10 +26,10 @@
     <xacro:arg name="fake_sensor_commands" default="false" />
 
     <!-- Is base husky or just box-shaped? -->
-    <xacro:arg name="mobile" default="true"/>
+    <xacro:arg name="mobile" default="false"/>
     
     <!-- Use franka hand finger joint as fixed? -->
-    <xacro:arg name="fix_finger" default="true"/>
+    <xacro:arg name="fix_finger" default="false"/>
     <!-- ============================================================= -->
 
     <!-- Derived properties from side -->
@@ -39,10 +39,6 @@
     <xacro:property name="side_val" value="$(arg side)"/>
     <xacro:property name="robot_ip"
                     value="${'172.16.5.5' if side_val == 'left' else '172.16.6.6'}"/>
-
-    <!-- prefix formatting (left_ / right_) -->
-    <xacro:property name="modified_prefix"
-                    value="${arm_prefix + '_' if arm_prefix else ''}"/>
 
     <!-- Base selection -->
     <xacro:unless value="$(arg mobile)">
@@ -75,7 +71,7 @@
                         fake_sensor_commands="$(arg fake_sensor_commands)"
                         gazebo_effort="false"
                         no_prefix="false"
-                        arm_prefix="${modified_prefix}"
+                        arm_prefix="${arm_prefix}"
                         description_pkg="franka_description"
                         connected_to="tmp_base"
                         fix_finger="$(arg fix_finger)">

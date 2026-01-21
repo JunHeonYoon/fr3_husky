@@ -13,7 +13,7 @@
     <xacro:arg name="mobile" default="false"/>
 
     <!-- Should self-collision be enabled? -->
-    <xacro:arg name="with_sc" default="true" />
+    <xacro:arg name="with_sc" default="false" />
     <!-- ============================================================= -->
 
     <xacro:franka_arm_srdf arm_id="fr3"
