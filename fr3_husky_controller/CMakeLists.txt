@@ -31,6 +31,10 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    nav_msgs
+    realtime_tools
+    tf2
+    tf2_msgs
 )
 
 find_package(ament_cmake REQUIRED)
@@ -38,24 +42,27 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
     find_package(${Dependency} REQUIRED)
 endforeach()
 
-# generate_parameter_library(test_single_fr3_controller_parameters
-#     src/test_single_fr3_controller_parameters.yaml
-# )
 
 generate_parameter_library(test_fr3_controller_parameters
     src/test_fr3_controller_parameters.yaml
 )
 
+generate_parameter_library(test_husky_controller_parameters
+    src/test_husky_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
-    # src/test_single_fr3_controller.cpp
     src/test_fr3_controller.cpp
     src/utils/dyros_math.cpp
     src/utils/motion_primitives.cpp
+    src/test_husky_controller.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(${PROJECT_NAME} PRIVATE -Wno-error=missing-braces)
 endif()
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -63,8 +70,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
-                    #   test_single_fr3_controller_parameters
                       test_fr3_controller_parameters
+                      test_husky_controller_parameters
                       controller_interface::controller_interface
                       hardware_interface::hardware_interface
                       pluginlib::pluginlib
@@ -93,6 +100,10 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    nav_msgs
+    realtime_tools
+    tf2
+    tf2_msgs
 )
 
 install(
@@ -101,8 +112,7 @@ install(
 )
 
 
-# install(TARGETS ${PROJECT_NAME} test_single_fr3_controller_parameters test_fr3_controller_parameters
-install(TARGETS ${PROJECT_NAME} test_fr3_controller_parameters
+install(TARGETS ${PROJECT_NAME} test_fr3_controller_parameters test_husky_controller_parameters
         EXPORT export_${PROJECT_NAME}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib

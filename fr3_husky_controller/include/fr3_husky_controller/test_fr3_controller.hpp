@@ -14,7 +14,16 @@
 #include <algorithm>
 #include <numeric>
 #include <sstream>
+#include <type_traits>
 #include <Eigen/Eigen>
+
+#if __cplusplus < 201703L
+// Fallback for toolchains/IntelliSense not using C++17.
+namespace std {
+template <class From, class To>
+constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
+}  // namespace std
+#endif
 
 #include <rclcpp/rclcpp.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
