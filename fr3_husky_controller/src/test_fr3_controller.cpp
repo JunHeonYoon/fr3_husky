@@ -230,7 +230,7 @@ CallbackReturn TestFR3Controller::on_configure(const rclcpp_lifecycle::State& /*
 
     try
     {
-        robot_data_ = std::make_shared<drc::Manipulator::RobotData>(urdf_xml, srdf_xml, description_pkg, true);
+        robot_data_ = std::make_shared<drc::Manipulator::RobotData>(dt_, urdf_xml, srdf_xml, description_pkg, true);
     }
     catch (const std::exception& e)
     {
@@ -246,7 +246,7 @@ CallbackReturn TestFR3Controller::on_configure(const rclcpp_lifecycle::State& /*
 
     try
     {
-        robot_controller_ = std::make_unique<drc::Manipulator::RobotController>(dt_, robot_data_);
+        robot_controller_ = std::make_unique<drc::Manipulator::RobotController>(robot_data_);
     }
     catch (const std::exception& e)
     {

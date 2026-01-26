@@ -100,7 +100,7 @@ CallbackReturn TestHuskyController::on_configure(const rclcpp_lifecycle::State &
     p.max_ang_acc   = params_.angular.z.max_acceleration;
 
     robot_data_ = std::make_shared<drc::Mobile::RobotData>(dt_, p);
-    robot_controller_ = std::make_unique<drc::Mobile::RobotController>(dt_, robot_data_);
+    robot_controller_ = std::make_unique<drc::Mobile::RobotController>(robot_data_);
 
     cmd_vel_timeout_ = std::chrono::milliseconds{static_cast<int>(params_.cmd_vel_timeout * 1000.0)};
 
