@@ -418,12 +418,15 @@
             <disable_collisions link1="left_fr3_hand" link2="left_fr3_link0" reason="User"/>
             <disable_collisions link1="left_fr3_hand" link2="left_fr3_link1" reason="User"/>
             <disable_collisions link1="left_fr3_hand" link2="left_fr3_link2" reason="User"/>
+            <disable_collisions link1="left_fr3_hand" link2="left_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_leftfinger" link2="left_fr3_link0" reason="User"/>
             <disable_collisions link1="left_fr3_leftfinger" link2="left_fr3_link1" reason="User"/>
             <disable_collisions link1="left_fr3_leftfinger" link2="left_fr3_link2" reason="User"/>
+            <disable_collisions link1="left_fr3_leftfinger" link2="left_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_rightfinger" link2="left_fr3_link0" reason="User"/>
             <disable_collisions link1="left_fr3_rightfinger" link2="left_fr3_link1" reason="User"/>
             <disable_collisions link1="left_fr3_rightfinger" link2="left_fr3_link2" reason="User"/>
+            <disable_collisions link1="left_fr3_rightfinger" link2="left_fr3_link5" reason="User"/>
     
             <!-- left hand - left link sc -->
             <disable_collisions link1="left_fr3_hand" link2="left_fr3_link4_sc" reason="Never"/>
@@ -477,12 +480,15 @@
             <disable_collisions link1="right_fr3_hand" link2="right_fr3_link0" reason="User"/>
             <disable_collisions link1="right_fr3_hand" link2="right_fr3_link1" reason="User"/>
             <disable_collisions link1="right_fr3_hand" link2="right_fr3_link2" reason="User"/>
+            <disable_collisions link1="right_fr3_hand" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="right_fr3_leftfinger" link2="right_fr3_link0" reason="User"/>
             <disable_collisions link1="right_fr3_leftfinger" link2="right_fr3_link1" reason="User"/>
             <disable_collisions link1="right_fr3_leftfinger" link2="right_fr3_link2" reason="User"/>
+            <disable_collisions link1="right_fr3_leftfinger" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="right_fr3_rightfinger" link2="right_fr3_link0" reason="User"/>
             <disable_collisions link1="right_fr3_rightfinger" link2="right_fr3_link1" reason="User"/>
             <disable_collisions link1="right_fr3_rightfinger" link2="right_fr3_link2" reason="User"/>
+            <disable_collisions link1="right_fr3_rightfinger" link2="right_fr3_link5" reason="User"/>
 
             <!-- right hand - right link sc -->
             <disable_collisions link1="right_fr3_hand" link2="right_fr3_link4_sc" reason="Never"/>

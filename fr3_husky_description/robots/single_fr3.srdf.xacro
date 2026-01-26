@@ -158,6 +158,9 @@
 
             <disable_collisions link1="${modified_prefix}fr3_link4" link2="${modified_prefix}fr3_hand_sc"  reason="Never"/>
 
+            <disable_collisions link1="${modified_prefix}fr3_link5" link2="${modified_prefix}fr3_hand"        reason="User"/>
+            <disable_collisions link1="${modified_prefix}fr3_link5" link2="${modified_prefix}fr3_leftfinger"  reason="User"/>
+            <disable_collisions link1="${modified_prefix}fr3_link5" link2="${modified_prefix}fr3_rightfinger" reason="User"/>
             <disable_collisions link1="${modified_prefix}fr3_link5" link2="${modified_prefix}fr3_hand_sc"  reason="Never"/>
 
             <disable_collisions link1="${modified_prefix}fr3_link6" link2="${modified_prefix}fr3_hand_sc"  reason="Never"/>
