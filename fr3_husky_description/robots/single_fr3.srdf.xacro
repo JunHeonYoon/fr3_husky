@@ -63,6 +63,7 @@
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link3_sc" reason="Default"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link4_sc" reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link5_sc" reason="User"/>
+        <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link6_sc" reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link7_sc" reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link5"    reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link6"    reason="User"/>
@@ -296,6 +297,9 @@
             <disable_collisions link1="${modified_prefix}fr3_link2_sc" link2="mobile_base"       reason="Never"/>
             <disable_collisions link1="${modified_prefix}fr3_link2_sc" link2="top_structure_link"       reason="Never"/>
 
+            <disable_collisions link1="${modified_prefix}fr3_link3" link2="front_left_wheel"  reason="User"/>
+            <disable_collisions link1="${modified_prefix}fr3_link3" link2="front_right_wheel" reason="User"/>
+
             <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="front_left_wheel"  reason="Never"/>
             <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="front_right_wheel" reason="Never"/>
             <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="rear_left_wheel"   reason="Never"/>
@@ -303,6 +307,8 @@
             <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="mobile_base"       reason="Never"/>
             <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="top_structure_link"       reason="Never"/>
 
+            <disable_collisions link1="${modified_prefix}fr3_link4" link2="front_left_wheel"  reason="User"/>
+            <disable_collisions link1="${modified_prefix}fr3_link4" link2="front_right_wheel" reason="User"/>
             <disable_collisions link1="${modified_prefix}fr3_link4" link2="top_structure_link"       reason="User"/>
 
 
@@ -353,11 +359,12 @@
                 <disable_collisions link1="${modified_prefix}fr3_leftfinger" link2="mobile_base"       reason="User"/>
                 <disable_collisions link1="${modified_prefix}fr3_leftfinger" link2="top_structure_link"       reason="User"/>
 
-                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="front_left_wheel"  reason="User"/>
-                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="front_right_wheel" reason="User"/>
-                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_left_wheel"   reason="User"/>
-                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_right_wheel"  reason="User"/>
-                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="mobile_base"       reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="front_left_wheel"   reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="front_right_wheel"  reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_left_wheel"    reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_right_wheel"   reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="mobile_base"        reason="User"/>
+                <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="top_structure_link" reason="User"/>
             </xacro:if>
         </xacro:if>
     </xacro:if>

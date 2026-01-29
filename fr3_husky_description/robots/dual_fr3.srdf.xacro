@@ -229,21 +229,29 @@
         <disable_collisions link1="right_fr3_link5_sc" link2="right_fr3_link7_sc" reason="User"/>
 
         <!-- left link - right link -->
+            <disable_collisions link1="left_fr3_link0" link2="right_fr3_link4" reason="User"/>
             <disable_collisions link1="left_fr3_link0" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_link0" link2="right_fr3_link6" reason="User"/>
             <disable_collisions link1="left_fr3_link0" link2="right_fr3_link7" reason="User"/>
+            <disable_collisions link1="left_fr3_link1" link2="right_fr3_link3" reason="User"/>
+            <disable_collisions link1="left_fr3_link1" link2="right_fr3_link4" reason="User"/>
             <disable_collisions link1="left_fr3_link1" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_link1" link2="right_fr3_link6" reason="User"/>
             <disable_collisions link1="left_fr3_link1" link2="right_fr3_link7" reason="User"/>
+            <disable_collisions link1="left_fr3_link2" link2="right_fr3_link3" reason="User"/>
             <disable_collisions link1="left_fr3_link2" link2="right_fr3_link4" reason="User"/>
             <disable_collisions link1="left_fr3_link2" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_link2" link2="right_fr3_link6" reason="User"/>
             <disable_collisions link1="left_fr3_link2" link2="right_fr3_link7" reason="User"/>
+            <disable_collisions link1="left_fr3_link3" link2="right_fr3_link1" reason="User"/>
+            <disable_collisions link1="left_fr3_link3" link2="right_fr3_link2" reason="User"/>
             <disable_collisions link1="left_fr3_link3" link2="right_fr3_link3" reason="User"/>
             <disable_collisions link1="left_fr3_link3" link2="right_fr3_link4" reason="User"/>
             <disable_collisions link1="left_fr3_link3" link2="right_fr3_link5" reason="User"/>
             <disable_collisions link1="left_fr3_link3" link2="right_fr3_link6" reason="User"/>
             <disable_collisions link1="left_fr3_link3" link2="right_fr3_link7" reason="User"/>
+            <disable_collisions link1="left_fr3_link4" link2="right_fr3_link0" reason="User"/>
+            <disable_collisions link1="left_fr3_link4" link2="right_fr3_link1" reason="User"/>
             <disable_collisions link1="left_fr3_link4" link2="right_fr3_link2" reason="User"/>
             <disable_collisions link1="left_fr3_link4" link2="right_fr3_link3" reason="User"/>
             <disable_collisions link1="left_fr3_link4" link2="right_fr3_link4" reason="User"/>

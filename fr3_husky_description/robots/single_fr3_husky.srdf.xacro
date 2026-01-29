@@ -5,16 +5,16 @@
 
     <!-- ============================================================= -->
     <!-- Which arm: left or right -->
-    <xacro:arg name="side" default="left"/>
+    <xacro:arg name="side" default='left'/>
 
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
     <!-- Should self-collision be enabled? -->
-    <xacro:arg name="with_sc" default="false" />
+    <xacro:arg name="with_sc" default="true" />
 
     <!-- Assume Husky as two wheel mobile? (use only for pinocchio, not ros2_control) -->
-    <xacro:arg name="as_two_wheels" default="false"/>
+    <xacro:arg name="as_two_wheels" default="true"/>
     <!-- ============================================================= -->
 
     <!-- Derived arm_prefix from side -->
@@ -25,7 +25,7 @@
 
     <xacro:property name="as_two_wheels_val" value="$(arg as_two_wheels)"/>
     <xacro:property name="wheel_suffix"
-                    value="${'_dummy' if as_two_wheels_val.lower() == 'true' else ''}"/>
+                    value="${'_dummy' if str(as_two_wheels_val).lower() == 'true' else ''}"/>
 
     <xacro:franka_arm_srdf arm_id="fr3"
                            hand="$(arg hand)"
@@ -67,6 +67,7 @@
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link3_sc" reason="Default"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link4_sc" reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link5_sc" reason="User"/>
+        <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link6_sc" reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link7_sc" reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link5"    reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link2" link2="${modified_prefix}fr3_link6"    reason="User"/>
@@ -273,6 +274,9 @@
         <disable_collisions link1="${modified_prefix}fr3_link2_sc" link2="base_link"       reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link2_sc" link2="top_structure_link"       reason="Never"/>
 
+        <disable_collisions link1="${modified_prefix}fr3_link3" link2="front_left_wheel${wheel_suffix}"  reason="User"/>
+        <disable_collisions link1="${modified_prefix}fr3_link3" link2="front_right_wheel${wheel_suffix}" reason="User"/>
+
         <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="front_left_wheel${wheel_suffix}"  reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="front_right_wheel${wheel_suffix}" reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="rear_left_wheel${wheel_suffix}"   reason="Never"/>
@@ -280,6 +284,8 @@
         <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="base_link"       reason="Never"/>
         <disable_collisions link1="${modified_prefix}fr3_link3_sc" link2="top_structure_link"       reason="Never"/>
 
+        <disable_collisions link1="${modified_prefix}fr3_link4" link2="front_left_wheel${wheel_suffix}"  reason="User"/>
+        <disable_collisions link1="${modified_prefix}fr3_link4" link2="front_right_wheel${wheel_suffix}" reason="User"/>
         <disable_collisions link1="${modified_prefix}fr3_link4" link2="top_structure_link"       reason="User"/>
 
 
@@ -335,6 +341,7 @@
             <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_left_wheel${wheel_suffix}"   reason="User"/>
             <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="rear_right_wheel${wheel_suffix}"  reason="User"/>
             <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="base_link"       reason="User"/>
+            <disable_collisions link1="${modified_prefix}fr3_rightfinger" link2="top_structure_link"       reason="User"/>
         </xacro:if>
     </xacro:if>
 
