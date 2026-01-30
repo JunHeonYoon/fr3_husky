@@ -122,7 +122,7 @@
     </joint>
 
 
-    <joint name="tmp_base_joint" type="fixed">
+    <joint name="base_joint" type="fixed">
         <parent link="base_link"/>
         <child link="tmp_base"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
