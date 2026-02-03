@@ -51,11 +51,16 @@ generate_parameter_library(test_husky_controller_parameters
     src/test_husky_controller_parameters.yaml
 )
 
+generate_parameter_library(test_fr3_husky_controller_parameters
+    src/test_fr3_husky_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
-    src/test_fr3_controller.cpp
     src/utils/dyros_math.cpp
     src/utils/motion_primitives.cpp
+    src/test_fr3_controller.cpp
     src/test_husky_controller.cpp
+    src/test_fr3_husky_controller.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -72,6 +77,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} PUBLIC
                       test_fr3_controller_parameters
                       test_husky_controller_parameters
+                      test_fr3_husky_controller_parameters
                       controller_interface::controller_interface
                       hardware_interface::hardware_interface
                       pluginlib::pluginlib
@@ -112,7 +118,10 @@ install(
 )
 
 
-install(TARGETS ${PROJECT_NAME} test_fr3_controller_parameters test_husky_controller_parameters
+install(TARGETS ${PROJECT_NAME} 
+            test_fr3_controller_parameters 
+            test_husky_controller_parameters
+            test_fr3_husky_controller_parameters
         EXPORT export_${PROJECT_NAME}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib

@@ -67,7 +67,9 @@ namespace robot_utils
     return mapping_vector;
     }
 
-    bool contains_interface_type(const std::vector<std::string> & interface_type_list, const std::string & interface_type)
+    // helper used across multiple controllers; inline to avoid multiple definition at link time
+    inline bool contains_interface_type(const std::vector<std::string> & interface_type_list,
+                                        const std::string & interface_type)
     {
         return std::find(interface_type_list.begin(), interface_type_list.end(), interface_type) != interface_type_list.end();
     }
