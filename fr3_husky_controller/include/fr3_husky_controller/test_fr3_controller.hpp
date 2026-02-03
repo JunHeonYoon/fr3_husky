@@ -46,8 +46,6 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 #include <fr3_husky_controller/utils/dyros_math.h>
 #include <fr3_husky_controller/utils/robot_utils.hpp>
 
-#include "fr3_husky_msgs/action/move_link.hpp"
-
 #include "dyros_robot_controller/manipulator/robot_data.h"
 #include "dyros_robot_controller/manipulator/robot_controller.h"
 
@@ -86,9 +84,6 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
     private:
-        using MoveLink = fr3_husky_msgs::action::MoveLink;
-        using GoalHandleMoveLink = rclcpp_action::ServerGoalHandle<MoveLink>;
-
         // ========================================================================
         // ====================== Main Controller Functions =======================
         // ========================================================================
