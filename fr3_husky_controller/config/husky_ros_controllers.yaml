@@ -44,6 +44,6 @@ test_husky_controller:
     linear.x.max_acceleration: 1.0
     linear.x.max_jerk: 0.0
 
-    angular.z.max_velocity: 0.0
+    angular.z.max_velocity: 1.0
     angular.z.max_acceleration: 1.0
     angular.z.max_jerk: 0.0
