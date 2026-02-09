@@ -1,9 +1,11 @@
 import os
 import yaml
+import tempfile
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, Shutdown, OpaqueFunction
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -62,6 +64,11 @@ def _launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands')
     namespace = LaunchConfiguration('namespace')
+
+    # Ensure load_gripper is treated as a boolean (not a string) when applied to controller params.
+    def _to_bool(value: str) -> bool:
+        return value.lower() in ('true', '1', 'yes', 'y')
+    load_gripper_value = _to_bool(load_gripper.perform(context))
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -141,29 +148,40 @@ def _launch_setup(context, *args, **kwargs):
     )
 
     # ros2_control node (side-specific controller yaml file path)
-    ros2_controllers_path = os.path.join(
-        get_package_share_directory('fr3_husky_controller'),
-        'config', 'fr3_husky_ros_controllers.yaml'
-    )
-    
-    controller_param_overrides = {}
+    controllers_yaml = load_yaml('fr3_husky_controller', 'config/fr3_husky_ros_controllers.yaml')
+    if controllers_yaml is None:
+        raise RuntimeError("Failed to load fr3_husky_ros_controllers.yaml")
+    controllers_root = controllers_yaml.get('/**', controllers_yaml)
+    def _set_controller_params(ctrl_name):
+        if ctrl_name not in controllers_root:
+            raise RuntimeError(f"Controller '{ctrl_name}' not found in fr3_husky_ros_controllers.yaml")
+        controllers_root[ctrl_name]['ros__parameters']['hand'] = load_gripper_value
     if is_dual:
-        controller_param_overrides['test_dual_fr3_controller'] = {
-            'ros__parameters': {
-                'hand': load_gripper,
-            }
-        }
+        _set_controller_params('test_dual_fr3_husky_controller')
     else:
-        controller_name = (
-            'test_left_fr3_controller'
-            if normalized_sides[0] == 'left'
-            else 'test_right_fr3_controller'
-        )
-        controller_param_overrides[controller_name] = {
-            'ros__parameters': {
-                'hand': load_gripper,
-            }
-        }
+        controller_name = 'test_left_fr3_husky_controller' if normalized_sides[0] == 'left' else 'test_right_fr3_husky_controller'
+        _set_controller_params(controller_name)
+
+    # Ensure franka_robot_state_broadcaster is declared and uses the correct prefix
+    controller_manager = controllers_root.get('controller_manager')
+    if controller_manager is None or 'ros__parameters' not in controller_manager:
+        raise RuntimeError("controller_manager parameters missing in fr3_husky_ros_controllers.yaml")
+    cm_params = controller_manager['ros__parameters']
+    cm_params.setdefault(
+        'franka_robot_state_broadcaster',
+        {'type': 'franka_robot_state_broadcaster/FrankaRobotStateBroadcaster'}
+    )
+
+    franka_state_params = controllers_root.setdefault(
+        'franka_robot_state_broadcaster', {}).setdefault('ros__parameters', {})
+    franka_state_params.setdefault('arm_id', 'fr3')
+    # Prefix must match the ros2_control hardware 'name_stem' (prefix + arm_id)
+    franka_state_params['interface_prefix'] = '' if is_dual else normalized_sides[0]
+
+    # Write patched YAML to a temp file so ros2_control_node reads it with the correct schema.
+    temp_fd, controllers_yaml_path = tempfile.mkstemp(prefix='fr3_husky_controllers_', suffix='.yaml')
+    with os.fdopen(temp_fd, 'w') as f:
+        yaml.safe_dump(controllers_yaml, f)
 
     if is_dual:
         joint_state_remap = 'dual_fr3_husky/joint_states'
@@ -173,7 +191,7 @@ def _launch_setup(context, *args, **kwargs):
         package='controller_manager',
         executable='ros2_control_node',
         namespace=namespace,
-        parameters=[robot_description, ros2_controllers_path, controller_param_overrides],
+        parameters=[robot_description, controllers_yaml_path],
         remappings=[('joint_states', joint_state_remap)],
         output={'stdout': 'screen', 'stderr': 'screen'},
         on_exit=Shutdown(),
@@ -214,16 +232,15 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    # franka_robot_state_broadcaster = None
-    # if 'franka_robot_state_broadcaster' in controller_params:
-    #     franka_robot_state_broadcaster = Node(
-    #         package='controller_manager',
-    #         executable='spawner',
-    #         namespace=namespace,
-    #         arguments=['franka_robot_state_broadcaster'],
-    #         output='screen',
-    #         condition=UnlessCondition(use_fake_hardware),
-    #     )
+    franka_robot_state_broadcaster = None
+    franka_robot_state_broadcaster = Node(
+        package='controller_manager',
+        executable='spawner',
+        namespace=namespace,
+        arguments=['franka_robot_state_broadcaster'],
+        output='screen',
+        condition=UnlessCondition(use_fake_hardware),
+        )
     
     # gripper (only if you actually want it; and consider gating with load_gripper)
     gripper_launch_files = []
@@ -298,8 +315,8 @@ def _launch_setup(context, *args, **kwargs):
         launch_husky_teleop_joy,
         
     ]
-    # if franka_robot_state_broadcaster is not None:
-    #     nodes.append(franka_robot_state_broadcaster)
+    if franka_robot_state_broadcaster is not None:
+        nodes.append(franka_robot_state_broadcaster)
     nodes.extend(gripper_launch_files)
     nodes.extend(load_controllers)
     return nodes
