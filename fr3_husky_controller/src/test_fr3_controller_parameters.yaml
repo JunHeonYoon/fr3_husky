@@ -1,4 +1,5 @@
 test_fr3_controller:
+  # FR3
   robot_name: {
     type: string_array,
     default_value: ["left", "right"],
@@ -14,111 +15,111 @@ test_fr3_controller:
     default_value: false,
     description: "Use Husky as base?",
   }
+  manipulator_joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joint names of the manipulator system",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+    }
+  }
+  manipulator_command_interface: {
+    type: string,
+    default_value: "effort",
+    description: "Command interface provided by the hardware interface for manipulator joints",
+    read_only: true,
+    validation: {
+      one_of<>: [["position", "velocity", "effort"]],
+    }
+  }
+  manipulator_state_interfaces: {
+    type: string_array,
+    default_value: [],
+    description: "State interfaces provided by the hardware for manipulator joints.",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity", "effort",]],
+    }
+  }
+  #  Dyros Robot Controller
   dyros_robot_controller:
-    joint:
-      joint_kp: {
-        type: double_array,
-        # default_value: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0,
-        #                 600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0],
-        description: "Joint-space proportional gains (size 7*num_robot)",
+    manipulator_joint_gains: 
+      use_mass_matrix: {
+        type: bool,
+        default_value: false,
+        description: "When set to true, use joint space mass matrix for PD control (size must be 7*num_robot)"
       }
-      joint_kv: {
+      kp: {
         type: double_array,
-        # default_value: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0,
-        #                 30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0],
-        description: "Joint-space derivative gains (size 7*num_robot)",
+        default_value: [],
+        description: "Manipulator joint position gains for PD control (size must be 7*num_robot)"
       }
-      qpik_damping: {
+      kv: {
         type: double_array,
-        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        description: "QPIK damping weights (size 7*num_robot)",
+        default_value: [],
+        description: "Manipulator joint velocity gains for PD control (size must be 7*num_robot)"
       }
-      qpid_vel_damping: {
-        type: double_array,
-        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        description: "QPID velocity damping weights (size 7*num_robot)",
-      }
-      qpid_acc_damping: {
-        type: double_array,
-        # default_value: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-        #                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
-        description: "QPID acceleration damping weights (size 7*num_robot)",
-      }
-    task:
+    task_gains:
       link_names: {
         type: string_array,
-        # default_value: ["left_fr3_hand_tcp", "right_fr3_hand_tcp"],
-        description: "Task link names",
+        default_value: [],
+        description: "Link names for setting PD control"
       }
-      qpik_tracking: {
+      kp: {
         type: double_array,
-        # default_value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-        #                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        description: "QPIK tracking weights (size 6 * link_names)",
+        default_value: [],
+        description: "Task space position gains for PD control (size must be 6 * link_names)"
       }
-      qpid_tracking: {
+      kv: {
         type: double_array,
-        # default_value: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-        #                 10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
-        description: "QPID tracking weights (size 6 * link_names)",
+        default_value: [],
+        description: "Task space velocity gains for PD control (size must be 6 * link_names)"
       }
-      task_kp: {
-        type: double_array,
-        # default_value: [400.0, 400.0, 400.0, 400.0, 400.0, 400.0,
-        #                 400.0, 400.0, 400.0, 400.0, 400.0, 400.0],
-        description: "Task-space proportional gains (size 6 * link_names)",
-      }
-      task_kv: {
-        type: double_array,
-        # default_value: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0,
-        #                 40.0, 40.0, 40.0, 40.0, 40.0, 40.0],
-        description: "Task-space derivative gains (size 6 * link_names)",
-      }
-  joints: {
-    type: string_array,
-    default_value: [],
-    description: "Joint names of the system",
-    read_only: true,
-    validation: {
-      unique<>: null,
-      size_gt<>: [0],
-    }
-  }
-  command_interfaces: {
-    type: string_array,
-    default_value: [],
-    description: "Command interfaces provided by the hardware interface for all joints",
-    read_only: true,
-    validation: {
-      unique<>: null,
-      size_gt<>: [0],
-      subset_of<>: [["position", "velocity", "acceleration", "effort",]],
-    }
-  }
-  state_interfaces: {
-    type: string_array,
-    default_value: [],
-    description: "State interfaces provided by the hardware for all joints.",
-    read_only: true,
-    validation: {
-      unique<>: null,
-      size_gt<>: [0],
-      subset_of<>: [["position", "velocity", "acceleration",]],
-    }
-  }
-  set_last_command_interface_value_as_state_on_activation: {
-    type: bool,
-    default_value: true,
-    description: "When set to true, the last command interface value is used as both the current state and the last commanded state upon activation. When set to false, the current state is used for both.",
-  }
-  # action_monitor_rate: {
-  #   type: double,
-  #   default_value: 20.0,
-  #   description: "Rate to monitor status changes when the controller is executing an action goal",
-  #   read_only: true,
-  #   validation: {
-  #     gt_eq: [0.1]
-  #   }
-  # }
+    QPIK_weight:
+      tracking:
+        link_names: {
+          type: string_array,
+          default_value: [],
+          description: "Link names for setting QPIK weights"
+        }
+        weights: {
+          type: double_array,
+          default_value: [],
+          description: "Weight for track given task space velocity (size must be 6 * link_names)"
+        }
+      joint:
+        velocity: 
+          manipulator: {
+            type: double_array,
+            default_value: [],
+            description: "Weight for damping manipulator joint velocity (size must be 7 * num_robot)"
+          }
+    QPID_weight:
+      tracking:
+        link_names: {
+          type: string_array,
+          default_value: [],
+          description: "Link names for setting QPID weights"
+        }
+        weights: {
+          type: double_array,
+          default_value: [],
+          description: "Weight for track given task space acceleration (size must be 6 * link_names)"
+        }
+      joint:
+        velocity: 
+          manipulator: {
+            type: double_array,
+            default_value: [],
+            description: "Weight for damping manipulator joint velocity (size must be 7 * num_robot)"
+          }
+        acceleration: 
+          manipulator: {
+            type: double_array,
+            default_value: [],
+            description: "Weight for damping manipulator joint acceleration (size must be 7 * num_robot)"
+          }

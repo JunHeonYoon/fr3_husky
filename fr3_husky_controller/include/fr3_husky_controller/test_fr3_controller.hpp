@@ -35,6 +35,7 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 #include <rclcpp_action/server_goal_handle.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include "lifecycle_msgs/msg/state.hpp"
 
 #include <franka_semantic_components/franka_robot_model.hpp>
 #include <franka_semantic_components/franka_robot_state.hpp>
@@ -71,6 +72,14 @@ namespace fr3_husky_controller
 {
 class TestFR3Controller : public controller_interface::ControllerInterface 
 {
+    // Shared interface slot indices
+    inline static constexpr size_t kPositionIndex = 0;
+    inline static constexpr size_t kVelocityIndex = 1;
+    inline static constexpr size_t kEffortIndex   = 2;
+    inline static constexpr size_t kFeedbackPositionIndex = 0;
+    inline static constexpr size_t kFeedbackVelocityIndex = 1;
+    inline static constexpr size_t kFeedbackEffortIndex = 2;
+
     public:
         // ========================================================================
         // ============================ Core Functions ============================
@@ -87,14 +96,13 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         // ========================================================================
         // ====================== Main Controller Functions =======================
         // ========================================================================
-        void writeCommandInterfaces(const Eigen::VectorXd& command_position,
-                                    const Eigen::VectorXd& command_velocity,
-                                    const Eigen::VectorXd& command_effort);
+        void writeCommandInterfaces(const Eigen::VectorXd& command);
         void updateJointStates();			
         void updateRobotData();
         
         bool loadDRCGains();
         void setInitfromCurrent();
+
         // ========================================================================
         // =========================== Franka robot Data ==========================
         // ========================================================================
@@ -102,66 +110,60 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         std::shared_ptr<drc::Manipulator::RobotData> robot_data_;
         std::unique_ptr<drc::Manipulator::RobotController> robot_controller_;
 
-        // ====== Joint space data ======
-        // initial state
-        std::vector<Eigen::Vector7d> q_init_;
-        std::vector<Eigen::Vector7d> qdot_init_;
-        std::vector<Eigen::Vector7d> qddot_init_;
-        Eigen::VectorXd q_total_init_;
-        Eigen::VectorXd qdot_total_init_;
-        Eigen::VectorXd qddot_total_init_;
+        // ========================================================================
+        // ======================= Manipulator State Data =========================
+        // ========================================================================
+        struct ManipulatorState
+        {
+            // Initial
+            std::vector<Eigen::Vector<double, FR3_DOF>> q_init;
+            std::vector<Eigen::Vector<double, FR3_DOF>> qdot_init;
+            std::vector<Eigen::Vector<double, FR3_DOF>> qddot_init;
+            Eigen::VectorXd q_total_init;
+            Eigen::VectorXd qdot_total_init;
+            Eigen::VectorXd qddot_total_init;
+    
+            // Current
+            std::vector<Eigen::Vector<double, FR3_DOF>> q;
+            std::vector<Eigen::Vector<double, FR3_DOF>> qdot;
+            std::vector<Eigen::Vector<double, FR3_DOF>> qddot;
+            std::vector<Eigen::Vector<double, FR3_DOF>> torque;
+            Eigen::VectorXd q_total;
+            Eigen::VectorXd qdot_total;
+            Eigen::VectorXd qddot_total;
+            Eigen::VectorXd torque_total;
+    
+            // Desired
+            std::vector<Eigen::Vector<double, FR3_DOF>> q_desired;
+            std::vector<Eigen::Vector<double, FR3_DOF>> qdot_desired;
+            std::vector<Eigen::Vector<double, FR3_DOF>> torque_desired;
+            Eigen::VectorXd q_desired_total;
+            Eigen::VectorXd qdot_desired_total;
+            Eigen::VectorXd torque_desired_total;
+    
+            // Dynamics
+            std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M;
+            std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M_inv;
+            std::vector<Eigen::Vector<double, FR3_DOF>> c;
+            std::vector<Eigen::Vector<double, FR3_DOF>> g;
+            Eigen::MatrixXd M_total;
+            Eigen::MatrixXd M_inv_total;
+            Eigen::VectorXd c_total;
+            Eigen::VectorXd g_total;
+        };
 
-        bool hold_init_valid_{false};
+        ManipulatorState mani_state_;
 
-        // current state
-        std::vector<Eigen::Vector7d> q_;
-        std::vector<Eigen::Vector7d> qdot_;
-        std::vector<Eigen::Vector7d> qddot_;
-        std::vector<Eigen::Vector7d> torque_;
-        Eigen::VectorXd q_total_;
-        Eigen::VectorXd qdot_total_;
-        Eigen::VectorXd qddot_total_;
-        Eigen::VectorXd torque_total_;
-
-        // desired state
-        std::vector<Eigen::Vector7d> q_desired_;
-        std::vector<Eigen::Vector7d> qdot_desired_;
-        std::vector<Eigen::Vector7d> torque_desired_;
-        Eigen::VectorXd q_desired_total_;
-        Eigen::VectorXd qdot_desired_total_;
-        Eigen::VectorXd torque_desired_total_;
-
-        // Dynamics
-        std::vector<Eigen::Matrix7d> M_;
-        std::vector<Eigen::Matrix7d> M_inv_;
-        std::vector<Eigen::Vector7d> c_;
-        std::vector<Eigen::Vector7d> g_;
-        Eigen::MatrixXd M_total_;
-        Eigen::MatrixXd M_inv_total_;
-        Eigen::VectorXd c_total_;
-        Eigen::VectorXd g_total_;
-
-        // ====== Task space data =======
+        // ========================================================================
+        // ============================= Task Space Data ==========================
+        // ========================================================================
         std::vector<std::string> ee_name_;
-
-        // initial state
-        std::vector<Eigen::Affine3d> x_init_;
-        std::vector<Eigen::Vector6d> xdot_init_;
-
-        // current state
-        std::vector<Eigen::Affine3d> x_;
-        std::vector<Eigen::Vector6d> xdot_;
-        std::vector<Eigen::Matrix<double, 6, FR3_DOF>> J_;
-
-        // desierd state
-        std::vector<Eigen::Affine3d> x_desired_;
-        std::vector<Eigen::Vector6d> xdot_desired_;
-
+        std::map<std::string, drc::TaskSpaceData> ee_data_;
 
         // ========================================================================
         // =========================== Controller data ============================
         // ========================================================================
-        size_t num_robots_;
+        size_t num_robots_{0}; // number of FR3 arms
         double dt_{0.0};
         double play_time_{0.0};
         double control_start_time_{0.0};
@@ -173,42 +175,46 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         // ========================================================================
         std::shared_ptr<ParamListener> param_listener_;
         Params params_;
-        size_t dof_{0};
-        bool initialization_flag_{true};
+
+        size_t manipulator_dof_{0};
 
         // dyros_robot_controller gains
-        Eigen::VectorXd joint_kp_;
-        Eigen::VectorXd joint_kv_;
-        Eigen::VectorXd qpik_damping_;
-        Eigen::VectorXd qpid_vel_damping_;
-        Eigen::VectorXd qpid_acc_damping_;
-        std::map<std::string, Eigen::Vector6d> link_task_kp_;
-        std::map<std::string, Eigen::Vector6d> link_task_kv_;
-        std::map<std::string, Eigen::Vector6d> link_qpik_tracking_;
-        std::map<std::string, Eigen::Vector6d> link_qpid_tracking_;
+        Eigen::VectorXd mani_joint_kp_;
+        Eigen::VectorXd mani_joint_kv_;
+        Eigen::VectorXd qpik_mani_damping_;
+        Eigen::VectorXd qpid_mani_vel_damping_;
+        Eigen::VectorXd qpid_mani_acc_damping_;
+        std::map<std::string, Eigen::Vector6d> task_kp_;
+        std::map<std::string, Eigen::Vector6d> task_kv_;
+        std::map<std::string, Eigen::Vector6d> qpik_tracking_;
+        std::map<std::string, Eigen::Vector6d> qpid_tracking_;
 
         // ========================================================================
         // ============================ Mutex & Thread ============================
         // ========================================================================
         std::mutex robot_data_mutex_;
 
-        // To reduce number of variables and to make the code shorter the interfaces are ordered in types
-        // as the following constants
+        // ========================================================================
+        // ============================ Interfaces Setup ==========================
+        // ========================================================================
+        // Interface ordering (keeps indices consistent across interface types).
         const std::vector<std::string> allowed_interface_types_ = {
             hardware_interface::HW_IF_POSITION,
             hardware_interface::HW_IF_VELOCITY,
-            hardware_interface::HW_IF_ACCELERATION,
             hardware_interface::HW_IF_EFFORT,
         };
         
-        // The interfaces are defined as the types in 'allowed_interface_types_' member.
-        // For convenience, for each type the interfaces are ordered so that i-th position
-        // matches i-th index in joint_names_
-        template <typename T>
-        using InterfaceReferences = std::vector<std::vector<std::reference_wrapper<T>>>;
+        struct JointHandle
+        {
+            std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> state;
+            std::reference_wrapper<hardware_interface::LoanedCommandInterface> command;
 
-        InterfaceReferences<hardware_interface::LoanedCommandInterface> joint_command_interface_; //[interface_type_idx][joint_idx]
-        InterfaceReferences<hardware_interface::LoanedStateInterface> joint_state_interface_; //[interface_type_idx][joint_idx]
+            explicit JointHandle(std::reference_wrapper<hardware_interface::LoanedCommandInterface> cmd)
+            : command(cmd) {}
+        };
+
+        // Manipulator joint handles 
+        mutable std::vector<JointHandle> registered_manipulator_joint_handles_;
 
         bool has_position_state_interface_ = false;
         bool has_velocity_state_interface_ = false;
@@ -216,6 +222,8 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         bool has_position_command_interface_ = false;
         bool has_velocity_command_interface_ = false;
         bool has_effort_command_interface_ = false;
+
+        bool is_halted_ = false;
 };
 
 }  // namespace fr3_husky_controller
