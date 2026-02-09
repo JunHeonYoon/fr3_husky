@@ -145,6 +145,25 @@ def _launch_setup(context, *args, **kwargs):
         get_package_share_directory('fr3_husky_controller'),
         'config', 'fr3_husky_ros_controllers.yaml'
     )
+    
+    controller_param_overrides = {}
+    if is_dual:
+        controller_param_overrides['test_dual_fr3_controller'] = {
+            'ros__parameters': {
+                'hand': load_gripper,
+            }
+        }
+    else:
+        controller_name = (
+            'test_left_fr3_controller'
+            if normalized_sides[0] == 'left'
+            else 'test_right_fr3_controller'
+        )
+        controller_param_overrides[controller_name] = {
+            'ros__parameters': {
+                'hand': load_gripper,
+            }
+        }
 
     if is_dual:
         joint_state_remap = 'dual_fr3_husky/joint_states'
@@ -154,7 +173,7 @@ def _launch_setup(context, *args, **kwargs):
         package='controller_manager',
         executable='ros2_control_node',
         namespace=namespace,
-        parameters=[robot_description, ros2_controllers_path],
+        parameters=[robot_description, ros2_controllers_path, controller_param_overrides],
         remappings=[('joint_states', joint_state_remap)],
         output={'stdout': 'screen', 'stderr': 'screen'},
         on_exit=Shutdown(),

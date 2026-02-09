@@ -46,6 +46,7 @@ namespace std
 #include "realtime_tools/realtime_box.hpp"
 #include <realtime_tools/realtime_buffer.h>
 #include "tf2_msgs/msg/tf_message.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 
 #include <franka_semantic_components/franka_robot_model.hpp>
 #include <franka_semantic_components/franka_robot_state.hpp>

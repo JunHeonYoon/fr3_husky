@@ -1,10 +1,6 @@
 #include "fr3_husky_controller/test_fr3_husky_controller.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
-
 namespace fr3_husky_controller
 {
-using namespace std::chrono_literals;
-
 controller_interface::InterfaceConfiguration TestFR3HuskyController::state_interface_configuration() const
 {
     controller_interface::InterfaceConfiguration conf;
@@ -188,7 +184,7 @@ CallbackReturn TestFR3HuskyController::on_configure(const rclcpp_lifecycle::Stat
                                                                                                      name + "_" + arm_id_ + "/robot_state"));
     }
 
-    // Build robot description via xacro
+    // initialize dyros_robot_data & controller
     const std::string description_pkg = ament_index_cpp::get_package_share_directory("fr3_husky_description");
     std::string xacro_path = description_pkg + "/robots/";
     std::ostringstream segmentation_args;
@@ -198,7 +194,6 @@ CallbackReturn TestFR3HuskyController::on_configure(const rclcpp_lifecycle::Stat
                       << " ros2_control:=false"
                       << " use_fake_hardware:=false"
                       << " fake_sensor_commands:=false"
-                      << " fix_finger:=true"
                       << " virtual_joint:=true";
     std::string robot_segmentation_description_param = segmentation_args.str();
     std::string robot_description_param = robot_segmentation_description_param + " ros2_control:=false"
@@ -789,7 +784,7 @@ void TestFR3HuskyController::updateJointStates()
 
 void TestFR3HuskyController::updateRobotData()
 {
-    control_start_time_ = get_node()->now().seconds();
+    play_time_ = get_node()->now().seconds();
 
     mani_state_.M_total.setZero(manipulator_dof_, manipulator_dof_);
     for (size_t i = 0; i < num_robots_; ++i)
@@ -983,6 +978,8 @@ void TestFR3HuskyController::setInitfromCurrent()
     {
         ee_data.setInit();
     }
+
+    control_start_time_ = play_time_;
 }
 
 bool TestFR3HuskyController::reset()
