@@ -3,9 +3,7 @@
 namespace fr3_husky_controller::servers
 {
 
-GravityCompensation::GravityCompensation(const std::string& name,
-                                         const NodePtr& node,
-                                         FR3ModelUpdater& model_updater)
+GravityCompensation::GravityCompensation(const std::string& name, const NodePtr& node, FR3ModelUpdater& model_updater)
 : ActionServerBase(name, node, model_updater)
 {
     using std::placeholders::_1;
@@ -31,8 +29,6 @@ bool GravityCompensation::isActive() const
 
 int GravityCompensation::priority() const
 {
-    // TODO: Set priority if multiple servers request activation simultaneously.
-    // Higher wins. Default 0.
     return 0;
 }
 
@@ -127,9 +123,7 @@ void GravityCompensation::onDeactivated()
     RCLCPP_INFO(node_->get_logger(), "[%s] deactivated(owner released)", name_.c_str());
 }
 
-rclcpp_action::GoalResponse GravityCompensation::handle_goal(
-    const rclcpp_action::GoalUUID& /*uuid*/,
-    std::shared_ptr<const ActionT::Goal> /*goal*/)
+rclcpp_action::GoalResponse GravityCompensation::handle_goal(const rclcpp_action::GoalUUID& /*uuid*/, std::shared_ptr<const ActionT::Goal> /*goal*/)
 {
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }

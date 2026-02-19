@@ -27,7 +27,7 @@
          type="fr3_husky_controller::FR3ActionController"
          base_class_type="controller_interface::ControllerInterface">
     <description>
-      FR3 action controller based on dyros_robot_controller.
+      FR3 action controller.
     </description>
   </class>
 

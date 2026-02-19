@@ -96,16 +96,18 @@ public:
     void writeCommand(const Eigen::VectorXd& command);
     void haltCommands();
 
-    ManipulatorState& getState() { return mani_state_; }
+    ManipulatorState& getState()             { return mani_state_; }
     const ManipulatorState& getState() const { return mani_state_; }
     
-    std::vector<std::string>& getEEName() { return ee_names_; }
+    std::vector<std::string>& getEEName()             { return ee_names_; }
     const std::vector<std::string>& getEEName() const { return ee_names_; }
 
-    std::map<std::string, drc::TaskSpaceData>& getEEData() { return ee_data_; }
+    std::map<std::string, drc::TaskSpaceData>& getEEData()             { return ee_data_; }
     const std::map<std::string, drc::TaskSpaceData>& getEEData() const { return ee_data_; }
 
     std::shared_ptr<drc::Manipulator::RobotData> getRobotData() { return robot_data_; }
+    std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>>*getFrankaRobotModel() { return franka_robot_model_; }
+
     bool getHandlesReady() const { return !joint_handles_.empty(); }
 
     const bool HasPositionStateInterface()   { return has_position_state_interface_; }

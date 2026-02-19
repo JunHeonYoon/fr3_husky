@@ -186,7 +186,6 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     try
     {
         robot_data = std::make_shared<drc::Manipulator::RobotData>(dt_, urdf_xml, srdf_xml, description_pkg, true);
-        // robot_controller_ = std::make_unique<drc::Manipulator::RobotController>(robot_data);
         
         LOGI(get_node(), robot_data->getVerbose().c_str());
     }
@@ -195,11 +194,6 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
         LOGE(get_node(), "Failed to initialize RobotData: %s", e.what());
         return CallbackReturn::ERROR;
     }
-    
-    // if (!loadDRCGains())
-    // {
-    //     return CallbackReturn::FAILURE;
-    // }
 
     ee_name_.clear();
     for (const auto & name : params_.robot_name)
@@ -355,7 +349,6 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     model_updater_->updateJointStates();
     model_updater_->updateRobotModelAndData();
 
-    // owner 없으면: activate 요청 중 1개 선출(우선순위 버전)
     if (!active_server_)
     {
         std::shared_ptr<fr3_husky_controller::servers::ActionServerBase> best;
@@ -377,7 +370,6 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
         }
     }
 
-    // owner 있으면: cancel 요청 or goal 종료면 해제
     if (active_server_)
     {
         const bool cancel = active_server_->consumeCancelRequest();
@@ -392,7 +384,7 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
 
     if (active_server_)
     {
-        if (idle_control_) idle_control_->onDeactivated();  // 선택
+        if (idle_control_) idle_control_->onDeactivated();
         active_server_->compute(time, period);
     }
     else
@@ -406,117 +398,9 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     return controller_interface::return_type::OK;
 }
 
-// bool FR3ActionController::loadDRCGains()
-// {
-//     if (!robot_controller_)
-//     {
-//         LOGE(get_node(), "RobotController is not initialized for gain setup.");
-//         return false;
-//     }
-
-//     constexpr size_t task_dof = 6;
-
-//     const auto & joint = params_.dyros_robot_controller.manipulator_joint_gains;
-//     const auto & task  = params_.dyros_robot_controller.task_gains;
-//     const auto & qpik  = params_.dyros_robot_controller.QPIK_weight;
-//     const auto & qpid  = params_.dyros_robot_controller.QPID_weight;
-
-//     auto check_vector_size = [this](const std::string & name, size_t expected, size_t got) -> bool
-//     {
-//         if (got != expected)
-//         {
-//             LOGE(get_node(), "Parameter '%s' expected %zu values, got %zu.", name.c_str(), expected, got);
-//             return false;
-//         }
-//         return true;
-//     };
-
-//     // manipulator joint gains
-//     if (!check_vector_size("dyros_robot_controller.manipulator_joint_gains.kp", manipulator_dof_, joint.kp.size())) return false;
-//     if (!check_vector_size("dyros_robot_controller.manipulator_joint_gains.kv", manipulator_dof_, joint.kv.size())) return false;
-
-//     // task-space gains
-//     if (task.link_names.empty())
-//     {
-//         LOGE(get_node(), "Parameter 'dyros_robot_controller.task_gains.link_names' must not be empty.");
-//         return false;
-//     }
-//     const size_t expected_task = task.link_names.size() * task_dof;
-//     if (!check_vector_size("dyros_robot_controller.task_gains.kp", expected_task, task.kp.size())) return false;
-//     if (!check_vector_size("dyros_robot_controller.task_gains.kv", expected_task, task.kv.size())) return false;
-
-//     // QPIK weights
-//     if (qpik.tracking.link_names.empty())
-//     {
-//         LOGE(get_node(), "Parameter 'dyros_robot_controller.QPIK_weight.tracking.link_names' must not be empty.");
-//         return false;
-//     }
-//     const size_t expected_qpik_tracking = qpik.tracking.link_names.size() * task_dof;
-//     if (!check_vector_size("dyros_robot_controller.QPIK_weight.tracking.weights", expected_qpik_tracking, qpik.tracking.weights.size())) return false;
-//     if (!check_vector_size("dyros_robot_controller.QPIK_weight.joint.velocity.manipulator", manipulator_dof_, qpik.joint.velocity.manipulator.size())) return false;
-
-//     // QPID weights
-//     if (qpid.tracking.link_names.empty())
-//     {
-//         LOGE(get_node(), "Parameter 'dyros_robot_controller.QPID_weight.tracking.link_names' must not be empty.");
-//         return false;
-//     }
-//     const size_t expected_qpid_tracking = qpid.tracking.link_names.size() * task_dof;
-//     if (!check_vector_size("dyros_robot_controller.QPID_weight.tracking.weights", expected_qpid_tracking, qpid.tracking.weights.size())) return false;
-//     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.manipulator", manipulator_dof_, qpid.joint.velocity.manipulator.size())) return false;
-//     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.manipulator", manipulator_dof_, qpid.joint.acceleration.manipulator.size())) return false;
-
-//     mani_joint_kp_ = Eigen::Map<const Eigen::VectorXd>(joint.kp.data(), joint.kp.size());
-//     mani_joint_kv_ = Eigen::Map<const Eigen::VectorXd>(joint.kv.data(), joint.kv.size());
-
-//     qpik_mani_damping_ = Eigen::Map<const Eigen::VectorXd>(qpik.joint.velocity.manipulator.data(), qpik.joint.velocity.manipulator.size());
-
-//     qpid_mani_vel_damping_ = Eigen::Map<const Eigen::VectorXd>(qpid.joint.velocity.manipulator.data(), qpid.joint.velocity.manipulator.size());
-//     qpid_mani_acc_damping_ = Eigen::Map<const Eigen::VectorXd>(qpid.joint.acceleration.manipulator.data(), qpid.joint.acceleration.manipulator.size());
-
-//     // task gains per ee
-//     task_kp_.clear();
-//     task_kv_.clear();
-//     qpik_tracking_.clear();
-//     qpid_tracking_.clear();
-
-//     for (size_t i = 0; i < task.link_names.size(); ++i)
-//     {
-//         const auto & link = task.link_names[i];
-//         const size_t base = i * task_dof;
-//         Eigen::Vector6d kp = Eigen::Map<const Eigen::Vector6d>(&task.kp[base]);
-//         Eigen::Vector6d kv = Eigen::Map<const Eigen::Vector6d>(&task.kv[base]);
-//         task_kp_[link] = kp;
-//         task_kv_[link] = kv;
-//     }
-
-//     for (size_t i = 0; i < qpik.tracking.link_names.size(); ++i)
-//     {
-//         const auto & link = qpik.tracking.link_names[i];
-//         const size_t base = i * task_dof;
-//         Eigen::Vector6d w = Eigen::Map<const Eigen::Vector6d>(&qpik.tracking.weights[base]);
-//         qpik_tracking_[link] = w;
-//     }
-
-//     for (size_t i = 0; i < qpid.tracking.link_names.size(); ++i)
-//     {
-//         const auto & link = qpid.tracking.link_names[i];
-//         const size_t base = i * task_dof;
-//         Eigen::Vector6d w = Eigen::Map<const Eigen::Vector6d>(&qpid.tracking.weights[base]);
-//         qpid_tracking_[link] = w;
-//     }
-
-//     robot_controller_->setJointGain(mani_joint_kp_, mani_joint_kv_);
-//     robot_controller_->setTaskGain(task_kp_, task_kv_);
-//     robot_controller_->setQPIKGain(qpik_tracking_, qpik_mani_damping_);
-//     robot_controller_->setQPIDGain(qpid_tracking_, qpid_mani_vel_damping_, qpid_mani_acc_damping_);
-//     return true;
-// }
-
 }  // namespace fr3_husky_controller
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
-PLUGINLIB_EXPORT_CLASS(fr3_husky_controller::FR3ActionController,
-                       controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(fr3_husky_controller::FR3ActionController, controller_interface::ControllerInterface)
 
         

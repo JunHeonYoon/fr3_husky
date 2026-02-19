@@ -19,11 +19,10 @@ class IdleControl
         IdleControl(const std::string& name, const NodePtr& node, FR3ModelUpdater& fr3_model_updater);
         ~IdleControl() = default;
 
-        // active_server_가 없을 때만 호출되는 fallback
         bool compute(const rclcpp::Time& time, const rclcpp::Duration& period);
 
-        void onActivated();   // idle 모드에 들어올 때(선택)
-        void onDeactivated(); // idle 모드에서 나갈 때(선택)
+        void onActivated();
+        void onDeactivated();
 
     private:
         std::string name_;

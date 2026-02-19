@@ -49,7 +49,6 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 #include <fr3_husky_controller/utils/model/fr3_model_updater.hpp>
 
 #include "dyros_robot_controller/manipulator/robot_data.h"
-// #include "dyros_robot_controller/manipulator/robot_controller.h"
 
 #include <fr3_husky_controller/servers/action_server_base.hpp>
 #include <fr3_husky_controller/servers/idle_control.hpp>
@@ -100,13 +99,10 @@ class FR3ActionController : public controller_interface::ControllerInterface
         controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
     private:
-        // bool loadDRCGains();
-
         // ========================================================================
         // =========================== Franka robot Data ==========================
         // ========================================================================
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>> franka_robot_model_;
-        // std::unique_ptr<drc::Manipulator::RobotController> robot_controller_;
         std::unique_ptr<FR3ModelUpdater> model_updater_;
 
         // ========================================================================
@@ -129,19 +125,7 @@ class FR3ActionController : public controller_interface::ControllerInterface
         // ========================================================================
         std::shared_ptr<ParamListener> param_listener_;
         Params params_;
-
         size_t manipulator_dof_{0};
-
-        // // dyros_robot_controller gains
-        // Eigen::VectorXd mani_joint_kp_;
-        // Eigen::VectorXd mani_joint_kv_;
-        // Eigen::VectorXd qpik_mani_damping_;
-        // Eigen::VectorXd qpid_mani_vel_damping_;
-        // Eigen::VectorXd qpid_mani_acc_damping_;
-        // std::map<std::string, Eigen::Vector6d> task_kp_;
-        // std::map<std::string, Eigen::Vector6d> task_kv_;
-        // std::map<std::string, Eigen::Vector6d> qpik_tracking_;
-        // std::map<std::string, Eigen::Vector6d> qpid_tracking_;
 
         // ========================================================================
         // ============================ Mutex & Thread ============================

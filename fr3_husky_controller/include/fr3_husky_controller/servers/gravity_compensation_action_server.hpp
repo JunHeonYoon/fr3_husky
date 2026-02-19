@@ -19,10 +19,7 @@ public:
     using ActionT = fr3_husky_msgs::action::GravityCompensation;
     using GoalHandle = rclcpp_action::ServerGoalHandle<ActionT>;
 
-    GravityCompensation(const std::string& name,
-                        const NodePtr& node,
-                        FR3ModelUpdater& model_updater);
-
+    GravityCompensation(const std::string& name, const NodePtr& node, FR3ModelUpdater& model_updater);
     ~GravityCompensation() override = default;
 
     // Controller(owner) queries
@@ -30,20 +27,13 @@ public:
     int priority() const override;
 
     // Called ONLY when this server is owner in controller update-loop
-    bool compute(const rclcpp::Time& time,
-                 const rclcpp::Duration& period) override;
-
+    bool compute(const rclcpp::Time& time, const rclcpp::Duration& period) override;
     void onActivated() override;
     void onDeactivated() override;
 
 private:
-    rclcpp_action::GoalResponse handle_goal(
-        const rclcpp_action::GoalUUID& uuid,
-        std::shared_ptr<const ActionT::Goal> goal);
-
-    rclcpp_action::CancelResponse handle_cancel(
-        const std::shared_ptr<GoalHandle> goal_handle);
-
+    rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const ActionT::Goal> goal);
+    rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<GoalHandle> goal_handle);
     void handle_accepted(const std::shared_ptr<GoalHandle> goal_handle);
 
 private:
@@ -52,8 +42,6 @@ private:
     mutable std::mutex mutex_;
     std::shared_ptr<GoalHandle> active_goal_;
 
-    // TODO: Cache goal data needed by compute()
-    // e.g., ActionT::Goal::some_field goal_param_;
 private:
     std::unique_ptr<drc::Manipulator::RobotController> robot_controller_;
 };
