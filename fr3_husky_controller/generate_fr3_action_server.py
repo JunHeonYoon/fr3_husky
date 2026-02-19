@@ -99,7 +99,19 @@ private:
     mutable std::mutex mutex_;
     std::shared_ptr<GoalHandle> active_goal_;
 
-    // TODO: Cache goal data needed by compute()
+    // ======================= USER TODO FRAMEWORK =======================
+    // [SERVER CALLBACK THREAD] handle_goal / handle_cancel / handle_accepted
+    //   - Validate incoming goal
+    //   - Cache only small immutable goal parameters for controller thread
+    //   - requestActivate()/requestCancel() only (no heavy robot computation)
+    //
+    // [CONTROLLER UPDATE THREAD] onActivated / compute / onDeactivated
+    //   - Own robot command authority while selected as active owner
+    //   - Read state from model_updater_ and write command in compute()
+    //   - Finalize active goal in onDeactivated()
+    // ==================================================================
+
+    // TODO[SERVER->CONTROLLER BRIDGE]: Cache goal data needed by compute()
     // e.g., ActionT::Goal::some_field goal_param_;
 }};
 
@@ -151,7 +163,7 @@ bool {class_name}::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration&
     }}
     if (!gh) return true;
 
-    // TODO: Implement control logic here.
+    // TODO[CONTROLLER THREAD]: Implement control logic here.
     // - Read current state from model_updater_
     // - Write commands through model_updater_
     //
@@ -159,7 +171,7 @@ bool {class_name}::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration&
     // const auto& st = model_updater_.getState();
     // model_updater_.writePositionCommand(st.q_total);
 
-    // TODO: Publish feedback/result as needed:
+    // TODO[CONTROLLER THREAD]: Publish feedback/result as needed:
     // auto feedback = std::make_shared<ActionT::Feedback>();
     // gh->publish_feedback(feedback);
 
@@ -168,6 +180,7 @@ bool {class_name}::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration&
 
 void {class_name}::onActivated()
 {{
+    // TODO[CONTROLLER THREAD]: optional one-time init when owner is granted.
     RCLCPP_INFO(node_->get_logger(), "[%s] activated(owner)", name_.c_str());
 }}
 
@@ -176,7 +189,7 @@ void {class_name}::onDeactivated()
     std::lock_guard<std::mutex> lk(mutex_);
     if (active_goal_)
     {{
-        // TODO: Decide how to end the goal when owner is released.
+        // TODO[CONTROLLER THREAD]: Decide how to end the goal when owner is released.
         // - abort(...) if you are stopping prematurely
         // - succeed(...) if completed
         auto result = std::make_shared<ActionT::Result>();
@@ -188,13 +201,13 @@ void {class_name}::onDeactivated()
 
 rclcpp_action::GoalResponse {class_name}::handle_goal(const rclcpp_action::GoalUUID& /*uuid*/, std::shared_ptr<const ActionT::Goal> /*goal*/)
 {{
-    // TODO: Validate goal and decide ACCEPT/REJECT.
+    // TODO[SERVER CALLBACK THREAD]: Validate goal and decide ACCEPT/REJECT.
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }}
 
 rclcpp_action::CancelResponse {class_name}::handle_cancel(const std::shared_ptr<GoalHandle> /*goal_handle*/)
 {{
-    // Callback thread -> controller thread
+    // SERVER CALLBACK THREAD -> CONTROLLER THREAD signal
     requestCancel();
     return rclcpp_action::CancelResponse::ACCEPT;
 }}
@@ -205,10 +218,11 @@ void {class_name}::handle_accepted(const std::shared_ptr<GoalHandle> goal_handle
         std::lock_guard<std::mutex> lk(mutex_);
         active_goal_ = goal_handle;
 
-        // TODO: Cache goal fields needed for compute() from goal_handle->get_goal()
+        // TODO[SERVER CALLBACK THREAD]: Cache goal fields needed for compute()
+        // from goal_handle->get_goal()
         // auto goal = goal_handle->get_goal();
     }}
-    // Callback thread -> controller thread
+    // SERVER CALLBACK THREAD -> CONTROLLER THREAD signal
     requestActivate();
 }}
 
@@ -363,9 +377,12 @@ def main() -> None:
         print("  - No changes were needed.")
 
     print("\nNext steps:")
-    print("  1) Fill the TODOs in the generated .hpp/.cpp")
+    print("  1) Fill TODOs by thread boundary:")
+    print("     - [SERVER CALLBACK THREAD] handle_goal/handle_cancel/handle_accepted")
+    print("     - [CONTROLLER THREAD] onActivated/compute/onDeactivated")
     print("  2) Ensure your controller creates servers via ActionServerBase::createAll(...)")
-    print("  3) Build: colcon build --packages-select fr3_husky_controller")
+    print("  3) Read docs: fr3_husky_controller/docs/action_server_todo_framework.md")
+    print("  4) Build: colcon build --packages-select fr3_husky_controller")
 
 
 if __name__ == "__main__":
