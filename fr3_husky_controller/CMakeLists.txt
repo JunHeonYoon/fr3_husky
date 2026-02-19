@@ -55,12 +55,24 @@ generate_parameter_library(test_fr3_husky_controller_parameters
     src/test_fr3_husky_controller_parameters.yaml
 )
 
+generate_parameter_library(fr3_action_controller_parameters
+    src/fr3_action_controller_parameters.yaml
+)
+
 add_library(${PROJECT_NAME} SHARED
     src/utils/dyros_math.cpp
     src/utils/motion_primitives.cpp
+    src/utils/model/fr3_model_updater.cpp
+
     src/test_fr3_controller.cpp
     src/test_husky_controller.cpp
     src/test_fr3_husky_controller.cpp
+
+    src/fr3_action_controller.cpp
+
+    src/servers/action_server_base.cpp  
+    src/servers/idle_control.cpp
+    src/servers/gravity_compensation_action_server.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -122,6 +134,7 @@ install(TARGETS ${PROJECT_NAME}
             test_fr3_controller_parameters 
             test_husky_controller_parameters
             test_fr3_husky_controller_parameters
+            fr3_action_controller_parameters
         EXPORT export_${PROJECT_NAME}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib

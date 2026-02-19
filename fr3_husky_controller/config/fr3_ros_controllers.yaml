@@ -13,6 +13,15 @@
       test_dual_fr3_controller:
         type: fr3_husky_controller/TestFR3Controller
 
+      left_fr3_action_controller:
+        type: fr3_husky_controller/FR3ActionController
+
+      right_fr3_action_controller:
+        type: fr3_husky_controller/FR3ActionController
+
+      dual_fr3_action_controller:
+        type: fr3_husky_controller/FR3ActionController
+
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
 
@@ -178,3 +187,73 @@
             acceleration:
               manipulator: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+  left_fr3_action_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["left"]
+      hand: true
+      mobile_base: false
+      manipulator_joints:
+        - left_fr3_joint1
+        - left_fr3_joint2
+        - left_fr3_joint3
+        - left_fr3_joint4
+        - left_fr3_joint5
+        - left_fr3_joint6
+        - left_fr3_joint7
+      manipulator_state_interfaces:
+        - position
+        - velocity
+        - effort
+      manipulator_command_interface:
+        effort
+  
+  right_fr3_action_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["right"]
+      hand: true
+      mobile_base: false
+      manipulator_joints:
+        - right_fr3_joint1
+        - right_fr3_joint2
+        - right_fr3_joint3
+        - right_fr3_joint4
+        - right_fr3_joint5
+        - right_fr3_joint6
+        - right_fr3_joint7
+      manipulator_state_interfaces:
+        - position
+        - velocity
+        - effort
+      manipulator_command_interface:
+        effort
+
+  dual_fr3_action_controller:
+    ros__parameters:
+      update_rate: 1000  # Hz
+      robot_name: ["left", "right"]
+      hand: true
+      mobile_base: false
+      manipulator_joints:
+        - left_fr3_joint1
+        - left_fr3_joint2
+        - left_fr3_joint3
+        - left_fr3_joint4
+        - left_fr3_joint5
+        - left_fr3_joint6
+        - left_fr3_joint7
+        - right_fr3_joint1
+        - right_fr3_joint2
+        - right_fr3_joint3
+        - right_fr3_joint4
+        - right_fr3_joint5
+        - right_fr3_joint6
+        - right_fr3_joint7
+      manipulator_state_interfaces:
+        - position
+        - velocity
+        - effort
+      manipulator_command_interface: 
+        effort
