@@ -1,5 +1,5 @@
 # Define the goal
-bool enable  # true: enable gravity-comp mode (take ownership), false: disable (release)
+bool use_qp  # true: enable gravity-comp mode with QPID, false: only gravity-comp
 
 ---
 # Define the result
