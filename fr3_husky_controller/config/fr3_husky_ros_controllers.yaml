@@ -16,10 +16,29 @@
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
 
-      franka_robot_state_broadcaster:
+      left_franka_robot_state_broadcaster:
         type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
 
-  franka_robot_state_broadcaster:
+      right_franka_robot_state_broadcaster:
+        type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
+  left_franka_robot_state_broadcaster:
+    ros__parameters:
+      arm_id: fr3
+      interface_prefix: left
+      lock_try_count: 5
+      lock_sleep_interval: 5
+      lock_log_error: false
+      lock_update_success: true
+
+  right_franka_robot_state_broadcaster:
+    ros__parameters:
+      arm_id: fr3
+      interface_prefix: right
+      lock_try_count: 5
+      lock_sleep_interval: 5
+      lock_log_error: false
+      lock_update_success: true
     ros__parameters:
       lock_try_count: 5 # Number of attempts to acquire the lock in a single on_update()
       lock_sleep_interval: 5 # microseconds sleep between attempts
