@@ -3,10 +3,10 @@
 namespace fr3_husky_controller::servers
 {
 
-IdleControl::IdleControl(const std::string& name, const NodePtr& node, FR3ModelUpdater& fr3_model_updater)
+IdleControl::IdleControl(const std::string& name, const NodePtr& node, ModelUpdaterBase& model_updater)
 : name_(name),
   node_(node),
-  model_updater_(fr3_model_updater)
+  model_updater_(model_updater)
 {
     RCLCPP_INFO(node_->get_logger(), "[%s] IdleControl created", name_.c_str());
 }

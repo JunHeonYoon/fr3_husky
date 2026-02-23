@@ -111,15 +111,6 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     has_velocity_state_interface_ = robot_utils::contains_interface_type(params_.manipulator_state_interfaces, allowed_interface_types_[1]);
     has_effort_state_interface_   = robot_utils::contains_interface_type(params_.manipulator_state_interfaces, allowed_interface_types_[2]);
 
-    // command flags (exactly one will be true)
-    has_position_command_interface_ = (params_.manipulator_command_interface == allowed_interface_types_[0]);
-    has_velocity_command_interface_ = (params_.manipulator_command_interface == allowed_interface_types_[1]);
-    has_effort_command_interface_   = (params_.manipulator_command_interface == allowed_interface_types_[2]);
-
-    has_position_state_interface_ = robot_utils::contains_interface_type(params_.manipulator_state_interfaces, allowed_interface_types_[0]);
-    has_velocity_state_interface_ = robot_utils::contains_interface_type(params_.manipulator_state_interfaces, allowed_interface_types_[1]);
-    has_effort_state_interface_   = robot_utils::contains_interface_type(params_.manipulator_state_interfaces, allowed_interface_types_[2]);
-
     // Validation of combinations of state and velocity together have to be done
     // here because the parameter validators only deal with each parameter
     // separately.
@@ -212,10 +203,11 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     model_updater_->setNode(get_node());
     model_updater_->setInterfaceFlags(has_position_state_interface_, has_velocity_state_interface_, has_effort_state_interface_,
                                       has_position_command_interface_, has_velocity_command_interface_, has_effort_command_interface_);
-    model_updater_->setModelSources(robot_data, &franka_robot_model_);
     model_updater_->initialize(num_robots_, manipulator_dof_, dt_, ee_name_);
+    model_updater_->setFrankaModel(&franka_robot_model_);
+    model_updater_->setDRCRobotData(std::move(robot_data));
 
-    action_servers_ = servers::ActionServerBase::createAll(get_node(), *model_updater_);
+    action_servers_ = servers::ActionServerManager::createAllFR3(get_node(), *model_updater_);
     active_server_.reset();
     
     idle_control_ = std::make_unique<servers::IdleControl>("fr3_idle", get_node(), *model_updater_);
@@ -273,12 +265,12 @@ CallbackReturn FR3ActionController::on_activate(const rclcpp_lifecycle::State& /
         return CallbackReturn::ERROR;
     }
 
-    std::vector<JointHandle> joint_handles;
-    joint_handles.reserve(manipulator_dof_);
+    RobotHandle robot_handle;
+    robot_handle.mani_joints.reserve(manipulator_dof_);
     for (size_t i = 0; i < manipulator_dof_; ++i)
     {
-        joint_handles.emplace_back(cmd_by_type[i]);
-        auto& handle = joint_handles.back();
+        robot_handle.mani_joints.emplace_back(cmd_by_type[i]);
+        auto& handle = robot_handle.mani_joints.back();
         handle.state.clear();
 
         auto default_state_ref = state_by_type[kPositionIndex][i]; // position state is mandatory
@@ -289,7 +281,7 @@ CallbackReturn FR3ActionController::on_activate(const rclcpp_lifecycle::State& /
         if (has_effort_state_interface_ && state_by_type.size() > kEffortIndex && !state_by_type[kEffortIndex].empty())
             handle.state[kEffortIndex] = state_by_type[kEffortIndex][i];
     }
-    model_updater_->setJointHandles(std::move(joint_handles));
+    model_updater_->setRobotHandles(std::move(robot_handle));
 
     // Assign Franka semantic component state interfaces
     try
@@ -309,7 +301,7 @@ CallbackReturn FR3ActionController::on_activate(const rclcpp_lifecycle::State& /
 
     play_time_ = get_node()->now().seconds();
     model_updater_->updateJointStates();
-    model_updater_->updateRobotModelAndData();
+    model_updater_->updateRobotData();
     model_updater_->setInitFromCurrent();
     control_start_time_ = play_time_;
 
@@ -347,11 +339,11 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
 
     play_time_ = get_node()->now().seconds();
     model_updater_->updateJointStates();
-    model_updater_->updateRobotModelAndData();
+    model_updater_->updateRobotData();
 
     if (!active_server_)
     {
-        std::shared_ptr<fr3_husky_controller::servers::ActionServerBase> best;
+        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> best;
         int best_p = std::numeric_limits<int>::min();
 
         for (auto& s : action_servers_)
@@ -385,15 +377,12 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     if (active_server_)
     {
         if (idle_control_) idle_control_->onDeactivated();
-        active_server_->compute(time, period);
+        active_server_->update(time, period);
     }
     else
     {
         if (idle_control_) idle_control_->compute(time, period);
     }
-
-
-
 
     return controller_interface::return_type::OK;
 }

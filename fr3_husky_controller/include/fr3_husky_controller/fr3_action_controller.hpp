@@ -46,17 +46,12 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 
 #include <fr3_husky_controller/utils/dyros_math.h>
 #include <fr3_husky_controller/utils/robot_utils.hpp>
-#include <fr3_husky_controller/utils/model/fr3_model_updater.hpp>
+#include <fr3_husky_controller/model/fr3_model_updater.hpp>
 
 #include "dyros_robot_controller/manipulator/robot_data.h"
 
 #include <fr3_husky_controller/servers/action_server_base.hpp>
 #include <fr3_husky_controller/servers/idle_control.hpp>
-
-
-#ifndef FR3_DOF
-#define FR3_DOF 7
-#endif
 
 namespace ConsoleColor 
 {
@@ -149,8 +144,8 @@ class FR3ActionController : public controller_interface::ControllerInterface
         // ========================================================================
         // ============================ Action Servers ============================
         // ========================================================================
-        std::vector<std::shared_ptr<fr3_husky_controller::servers::ActionServerBase>> action_servers_;
-        std::shared_ptr<fr3_husky_controller::servers::ActionServerBase> active_server_;
+        std::vector<std::shared_ptr<fr3_husky_controller::servers::ActionServerManager>> action_servers_;
+        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> active_server_;
         std::unique_ptr<fr3_husky_controller::servers::IdleControl> idle_control_;
 
 };
