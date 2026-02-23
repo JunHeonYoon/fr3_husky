@@ -147,41 +147,35 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # Load controller YAML and override hand/mobile_base before starting controller_manager
     controllers_yaml = load_yaml('fr3_husky_controller', 'config/fr3_ros_controllers.yaml')
     if controllers_yaml is None:
         raise RuntimeError("Failed to load fr3_ros_controllers.yaml")
-    # YAML is keyed under '/**' in this file; patch in that map.
     controllers_root = controllers_yaml.get('/**', controllers_yaml)
+
     def _set_controller_params(ctrl_name):
         if ctrl_name not in controllers_root:
             raise RuntimeError(f"Controller '{ctrl_name}' not found in fr3_ros_controllers.yaml")
         controllers_root[ctrl_name]['ros__parameters']['mobile_base'] = load_mobile_value
         controllers_root[ctrl_name]['ros__parameters']['hand'] = load_gripper_value
+
     if is_dual:
         _set_controller_params('dual_fr3_action_controller')
     else:
         controller_name = 'left_fr3_action_controller' if normalized_sides[0] == 'left' else 'right_fr3_action_controller'
         _set_controller_params(controller_name)
 
-    # Ensure franka_robot_state_broadcaster is declared and uses the correct prefix
-    controller_manager = controllers_root.get('controller_manager')
-    if controller_manager is None or 'ros__parameters' not in controller_manager:
-        raise RuntimeError("controller_manager parameters missing in fr3_ros_controllers.yaml")
-    cm_params = controller_manager['ros__parameters']
-    cm_params.setdefault(
-        'franka_robot_state_broadcaster',
-        {'type': 'franka_robot_state_broadcaster/FrankaRobotStateBroadcaster'}
+    franka_broadcaster_names = (
+        ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
+        if is_dual
+        else [f'{normalized_sides[0]}_franka_robot_state_broadcaster']
     )
+    cm_params = controllers_root.get('controller_manager', {}).get('ros__parameters', {})
+    for broadcaster_name in franka_broadcaster_names:
+        if broadcaster_name not in cm_params:
+            raise RuntimeError(
+                f"Controller '{broadcaster_name}' not found in fr3_ros_controllers.yaml controller_manager."
+            )
 
-    franka_state_params = controllers_root.setdefault(
-        'franka_robot_state_broadcaster', {}).setdefault('ros__parameters', {})
-    franka_state_params.setdefault('arm_id', 'fr3')
-    # For single-arm launch, prefix matches selected side (left/right).
-    # Dual-arm support would require two broadcasters; keep empty prefix here.
-    franka_state_params['interface_prefix'] = '' if is_dual else normalized_sides[0]
-    # Write the rewritten controller params to a temp file so ros2_control_node
-    # reads them with the same semantics as the original YAML.
     temp_fd, controllers_yaml_path = tempfile.mkstemp(prefix='fr3_controllers_', suffix='.yaml')
     with os.fdopen(temp_fd, 'w') as f:
         yaml.safe_dump(controllers_yaml, f)
@@ -235,15 +229,17 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    franka_robot_state_broadcaster = None
-    franka_robot_state_broadcaster = Node(
-        package='controller_manager',
-        executable='spawner',
-        namespace=namespace,
-        arguments=['franka_robot_state_broadcaster'],
-        output='screen',
-        condition=UnlessCondition(use_fake_hardware),
+    franka_robot_state_broadcasters = [
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            arguments=[broadcaster_name],
+            output='screen',
+            condition=UnlessCondition(use_fake_hardware),
         )
+        for broadcaster_name in franka_broadcaster_names
+    ]
     
     # gripper (only if you actually want it; and consider gating with load_gripper)
     gripper_launch_files = []
@@ -285,8 +281,7 @@ def _launch_setup(context, *args, **kwargs):
         ros2_control_node,
         joint_state_publisher,
     ]
-    if franka_robot_state_broadcaster is not None:
-        nodes.append(franka_robot_state_broadcaster)
+    nodes.extend(franka_robot_state_broadcasters)
     nodes.extend(gripper_launch_files)
     nodes.extend(load_controllers)
     return nodes
