@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-generate_fr3_action_server.py
+generate_fr3_husky_action_server.py
 
-It generates FR3 action-server boilerplate:
-- HPP: include/fr3_husky_controller/servers/fr3/<snake>_action_server.hpp
-- CPP: src/servers/fr3/<snake>_action_server.cpp
+It generates FR3-Husky action-server boilerplate:
+- HPP: include/fr3_husky_controller/servers/fr3_husky/<snake>_action_server.hpp
+- CPP: src/servers/fr3_husky/<snake>_action_server.cpp
 
 It also patches CMakeLists.txt to add the new .cpp source (deduped).
 
 Usage:
-  python3 generate_fr3_action_server.py GravityCompensation
-  python3 generate_fr3_action_server.py HoldPosition --action-name fr3_hold_position
-  python3 generate_fr3_action_server.py "My New Server" --force
+  python3 generate_fr3_husky_action_server.py GravityCompensation
+  python3 generate_fr3_husky_action_server.py Docking --action-name fr3_husky_docking
+  python3 generate_fr3_husky_action_server.py "My New Server" --force
 """
 
 import argparse
@@ -21,7 +21,7 @@ from typing import Optional, Tuple
 
 
 def script_pkg_root() -> Path:
-    # This file lives in <pkg_root>/generate_fr3_action_server.py
+    # This file lives in <pkg_root>/generate_fr3_husky_action_server.py
     return Path(__file__).resolve().parent
 
 
@@ -66,9 +66,9 @@ def render_hpp(class_name: str, action_type_include: str, action_type: str) -> s
 #include <{action_type_include}>
 
 #include <fr3_husky_controller/servers/action_server_base.hpp>
-#include <fr3_husky_controller/model/fr3_model_updater.hpp>
+#include <fr3_husky_controller/model/fr3_husky_model_updater.hpp>
 
-namespace fr3_husky_controller::servers::fr3
+namespace fr3_husky_controller::servers::fr3_husky
 {{
 
 class {class_name} final : public ActionServerBase<{action_type}>
@@ -94,10 +94,10 @@ private:
     ResultPtr makeResult(StopReason reason) override;
 
 private:
-    FR3ModelUpdater& fr3_model_updater_;
+    FR3HuskyModelUpdater& fr3_husky_model_updater_;
 }};
 
-}}  // namespace fr3_husky_controller::servers::fr3
+}}  // namespace fr3_husky_controller::servers::fr3_husky
 """
 
 
@@ -106,26 +106,26 @@ def render_cpp(class_name: str, hpp_include: str, action_name: str) -> str:
 
 #include <stdexcept>
 
-namespace fr3_husky_controller::servers::fr3
+namespace fr3_husky_controller::servers::fr3_husky
 {{
 
 namespace
 {{
-FR3ModelUpdater& getFR3ModelUpdater(ModelUpdaterBase& model_updater, const std::string& server_name)
+FR3HuskyModelUpdater& getFR3HuskyModelUpdater(ModelUpdaterBase& model_updater, const std::string& server_name)
 {{
-    auto* fr3_model_updater = dynamic_cast<FR3ModelUpdater*>(&model_updater);
-    if (!fr3_model_updater)
+    auto* fr3_husky_model_updater = dynamic_cast<FR3HuskyModelUpdater*>(&model_updater);
+    if (!fr3_husky_model_updater)
     {{
-        throw std::runtime_error("[" + server_name + "] requires FR3ModelUpdater");
+        throw std::runtime_error("[" + server_name + "] requires FR3HuskyModelUpdater");
     }}
-    return *fr3_model_updater;
+    return *fr3_husky_model_updater;
 }}
 
 }}  // namespace
 
 {class_name}::{class_name}(const std::string& name, const NodePtr& node, ModelUpdaterBase& model_updater)
 : Base(name, node, model_updater),
-  fr3_model_updater_(getFR3ModelUpdater(model_updater, name))
+  fr3_husky_model_updater_(getFR3HuskyModelUpdater(model_updater, name))
 {{
     RCLCPP_INFO(node_->get_logger(), "[%s] {class_name} created", name_.c_str());
 }}
@@ -152,7 +152,7 @@ void {class_name}::onStart()
     const rclcpp::Time& /*time*/,
     const rclcpp::Duration& /*period*/)
 {{
-    // TODO: Implement control logic using fr3_model_updater_.
+    // TODO: Implement control logic using fr3_husky_model_updater_.
     // Example:
     // auto fb = std::make_shared<ActionT::Feedback>();
     // publishFeedback(fb);
@@ -188,9 +188,9 @@ void {class_name}::onStop(StopReason reason)
 }}
 
 // Register this server into global registry (executed when this TU is linked)
-REGISTER_FR3_ACTION_SERVER({class_name}, "{action_name}")
+REGISTER_FR3_HUSKY_ACTION_SERVER({class_name}, "{action_name}")
 
-}}  // namespace fr3_husky_controller::servers::fr3
+}}  // namespace fr3_husky_controller::servers::fr3_husky
 """
 
 
@@ -245,10 +245,10 @@ def patch_cmakelists(cmake_path: Path, new_cpp_rel: str, preferred_marker: str) 
 
     if chosen is None:
         hint = (
-            "\n# ---- Added by generate_fr3_action_server.py ----\n"
+            "\n# ---- Added by generate_fr3_husky_action_server.py ----\n"
             "# Please add this source to your target:\n"
             f"#   {new_cpp_rel}\n"
-            "# -----------------------------------------------\n"
+            "# -----------------------------------------------------\n"
         )
         cmake_path.write_text(text + hint, encoding="utf-8")
         return True, "No add_library/add_executable block found; appended hint."
@@ -282,7 +282,7 @@ def main() -> None:
     ap.add_argument(
         "--action-name",
         default=None,
-        help='Action name string for registration (default: "fr3_<snake>").',
+        help='Action name string for registration (default: "fr3_husky_<snake>").',
     )
     ap.add_argument(
         "--action-include",
@@ -309,13 +309,13 @@ def main() -> None:
 
     snake = to_snake(args.name)
     class_name = to_camel(snake)
-    action_name = args.action_name or default_action_name("fr3", snake)
+    action_name = args.action_name or default_action_name("fr3_husky", snake)
 
     hpp_name = f"{snake}{args.suffix}.hpp"
     cpp_name = f"{snake}{args.suffix}.cpp"
 
-    hpp_dir = pkg_root / "include" / "fr3_husky_controller" / "servers" / "fr3"
-    cpp_dir = pkg_root / "src" / "servers" / "fr3"
+    hpp_dir = pkg_root / "include" / "fr3_husky_controller" / "servers" / "fr3_husky"
+    cpp_dir = pkg_root / "src" / "servers" / "fr3_husky"
 
     ensure_dir(hpp_dir)
     ensure_dir(cpp_dir)
@@ -329,14 +329,14 @@ def main() -> None:
         )
 
     hpp_txt = render_hpp(class_name, args.action_include, args.action_type)
-    hpp_include = f"fr3_husky_controller/servers/fr3/{hpp_name}"
+    hpp_include = f"fr3_husky_controller/servers/fr3_husky/{hpp_name}"
     cpp_txt = render_cpp(class_name, hpp_include, action_name)
 
     hpp_path.write_text(hpp_txt, encoding="utf-8")
     cpp_path.write_text(cpp_txt, encoding="utf-8")
 
-    new_cpp_rel = f"src/servers/fr3/{cpp_name}"
-    changed, msg = patch_cmakelists(cmake_path, new_cpp_rel, "src/servers/fr3/")
+    new_cpp_rel = f"src/servers/fr3_husky/{cpp_name}"
+    changed, msg = patch_cmakelists(cmake_path, new_cpp_rel, "src/servers/fr3_husky/")
 
     print("Generated:")
     print(f"  - {hpp_path.relative_to(pkg_root)}")
@@ -348,7 +348,7 @@ def main() -> None:
 
     print("\nNext steps:")
     print("  1) Fill the TODOs in the generated .hpp/.cpp")
-    print("  2) Controller should call ActionServerManager::createAllFR3(...)")
+    print("  2) Controller should call ActionServerManager::createAllFR3Husky(...)")
     print("  3) Build: colcon build --packages-select fr3_husky_controller")
 
 
