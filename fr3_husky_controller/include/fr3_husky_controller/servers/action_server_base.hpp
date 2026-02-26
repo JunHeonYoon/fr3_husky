@@ -211,6 +211,9 @@ public:
 
         try
         {
+            // Refresh model state right before onStart so action servers can use current robot data.
+            model_updater_.updateJointStates();
+            model_updater_.updateRobotData();
             onStart();
         }
         catch (const std::exception& e)
