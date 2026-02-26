@@ -122,10 +122,10 @@
           joint: 
             velocity:
               manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-              mobile: [0.1, 0.1, 0.1]
+              mobile: [0.0, 0.0, 0.0]
             acceleration:
               manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
-              mobile: [0.1, 0.1, 0.1]
+              mobile: [0.0, 0.0, 0.0]
 
   right_fr3_husky_action_controller:
     ros__parameters:
