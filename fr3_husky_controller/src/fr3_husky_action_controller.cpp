@@ -895,8 +895,8 @@ bool FR3HuskyActionController::loadDRCGains(std::shared_ptr<drc::MobileManipulat
     if (!check_vector_size("dyros_robot_controller.QPID_weight.tracking.weights", task_dof, qpid.tracking.weights.size())) return false;
     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.manipulator", manipulator_dof_, qpid.joint.velocity.manipulator.size())) return false;
     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.manipulator", manipulator_dof_, qpid.joint.acceleration.manipulator.size())) return false;
-    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.mobile", base_dof, qpid.joint.velocity.manipulator.size())) return false;
-    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.mobile", base_dof, qpid.joint.acceleration.manipulator.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.mobile", base_dof, qpid.joint.velocity.mobile.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.mobile", base_dof, qpid.joint.acceleration.mobile.size())) return false;
 
     const Eigen::VectorXd mani_joint_kp = Eigen::Map<const Eigen::VectorXd>(joint.kp.data(), joint.kp.size());
     const Eigen::VectorXd mani_joint_kv = Eigen::Map<const Eigen::VectorXd>(joint.kv.data(), joint.kv.size());
