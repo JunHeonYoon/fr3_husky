@@ -49,6 +49,7 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 #include <fr3_husky_controller/model/fr3_model_updater.hpp>
 
 #include "dyros_robot_controller/manipulator/robot_data.h"
+#include "dyros_robot_controller/manipulator/robot_controller.h"
 
 #include <fr3_husky_controller/servers/action_server_base.hpp>
 #include <fr3_husky_controller/servers/idle_control.hpp>
@@ -99,6 +100,8 @@ class FR3ActionController : public controller_interface::ControllerInterface
         // ========================================================================
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>> franka_robot_model_;
         std::unique_ptr<FR3ModelUpdater> model_updater_;
+
+        bool loadDRCGains(std::shared_ptr<drc::Manipulator::RobotController> robot_controller);
 
         // ========================================================================
         // ============================= Task Space Data ==========================

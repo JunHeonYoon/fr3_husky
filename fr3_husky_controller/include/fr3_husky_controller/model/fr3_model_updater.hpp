@@ -17,6 +17,7 @@
 #include "fr3_husky_controller/model/model_updater_base.hpp"
 
 #include "dyros_robot_controller/manipulator/robot_data.h"
+#include "dyros_robot_controller/manipulator/robot_controller.h"
 
 
 namespace fr3_husky_controller
@@ -31,6 +32,7 @@ class FR3ModelUpdater final : public ModelUpdaterBase
                         double dt,
                         const std::vector<std::string>& ee_names) override;
         void setDRCRobotData(const std::shared_ptr<drc::Manipulator::RobotData>&& robot_data) { robot_data_ = std::move(robot_data); }
+        void setDRCRobotController(const std::shared_ptr<drc::Manipulator::RobotController>&& robot_controller) { robot_controller_ = std::move(robot_controller); }
         void updateJointStates() override;
         void updateRobotData() override;
         void haltCommands() override;
@@ -41,6 +43,7 @@ class FR3ModelUpdater final : public ModelUpdaterBase
     public:
         std::map<std::string, drc::TaskSpaceData> ee_data_;
         std::shared_ptr<drc::Manipulator::RobotData> robot_data_;
+        std::shared_ptr<drc::Manipulator::RobotController> robot_controller_;
             
         // Initial
         std::vector<Eigen::Vector<double, FR3_DOF>> q_init_;

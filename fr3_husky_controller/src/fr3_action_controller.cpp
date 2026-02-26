@@ -186,6 +186,10 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
         return CallbackReturn::ERROR;
     }
 
+    std::shared_ptr<drc::Manipulator::RobotController> robot_controller = std::make_shared<drc::Manipulator::RobotController>(robot_data);
+
+    if(!loadDRCGains(robot_controller)) return CallbackReturn::ERROR;
+
     ee_name_.clear();
     for (const auto & name : params_.robot_name)
     {
@@ -206,6 +210,7 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     model_updater_->initialize(num_robots_, manipulator_dof_, dt_, ee_name_);
     model_updater_->setFrankaModel(&franka_robot_model_);
     model_updater_->setDRCRobotData(std::move(robot_data));
+    model_updater_->setDRCRobotController(std::move(robot_controller));
 
     action_servers_ = servers::ActionServerManager::createAllFR3(get_node(), *model_updater_);
     active_server_.reset();
@@ -385,6 +390,86 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     }
 
     return controller_interface::return_type::OK;
+}
+
+bool FR3ActionController::loadDRCGains(std::shared_ptr<drc::Manipulator::RobotController> robot_controller)
+{
+    constexpr size_t task_dof = 6;
+
+    const auto & joint = params_.dyros_robot_controller.manipulator_joint_gains;
+    const auto & task  = params_.dyros_robot_controller.task_gains;
+    const auto & qpik  = params_.dyros_robot_controller.QPIK_weight;
+    const auto & qpid  = params_.dyros_robot_controller.QPID_weight;
+
+    auto check_vector_size = [this](const std::string & name, size_t expected, size_t got) -> bool
+    {
+        if (got != expected)
+        {
+            LOGE(get_node(), "Parameter '%s' expected %zu values, got %zu.", name.c_str(), expected, got);
+            return false;
+        }
+        return true;
+    };
+
+    // manipulator joint gains
+    if (!check_vector_size("dyros_robot_controller.manipulator_joint_gains.kp", manipulator_dof_, joint.kp.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.manipulator_joint_gains.kv", manipulator_dof_, joint.kv.size())) return false;
+
+    // task-space gains
+    if (!check_vector_size("dyros_robot_controller.task_gains.ik.kp", task_dof, task.ik.kp.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.task_gains.id.kp", task_dof, task.id.kp.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.task_gains.id.kv", task_dof, task.id.kv.size())) return false;
+
+    // QPIK weights
+    if (!check_vector_size("dyros_robot_controller.QPIK_weight.tracking.weights", task_dof, qpik.tracking.weights.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPIK_weight.joint.velocity.manipulator", manipulator_dof_, qpik.joint.velocity.manipulator.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPIK_weight.joint.acceleration.manipulator", manipulator_dof_, qpik.joint.acceleration.manipulator.size())) return false;
+
+    // QPID weights
+    if (!check_vector_size("dyros_robot_controller.QPID_weight.tracking.weights", task_dof, qpid.tracking.weights.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.manipulator", manipulator_dof_, qpid.joint.velocity.manipulator.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.manipulator", manipulator_dof_, qpid.joint.acceleration.manipulator.size())) return false;
+
+    const Eigen::VectorXd mani_joint_kp = Eigen::Map<const Eigen::VectorXd>(joint.kp.data(), joint.kp.size());
+    const Eigen::VectorXd mani_joint_kv = Eigen::Map<const Eigen::VectorXd>(joint.kv.data(), joint.kv.size());
+
+    const Eigen::VectorXd task_ik_kp = Eigen::Map<const Eigen::VectorXd>(task.ik.kp.data(), task.ik.kp.size());
+    const Eigen::VectorXd task_id_kp = Eigen::Map<const Eigen::VectorXd>(task.id.kp.data(), task.id.kp.size());
+    const Eigen::VectorXd task_id_kv = Eigen::Map<const Eigen::VectorXd>(task.id.kv.data(), task.id.kv.size());
+
+    const Eigen::VectorXd qpik_tracking = Eigen::Map<const Eigen::VectorXd>(qpik.tracking.weights.data(), qpik.tracking.weights.size());
+    const Eigen::VectorXd qpik_mani_damping = Eigen::Map<const Eigen::VectorXd>(qpik.joint.velocity.manipulator.data(), qpik.joint.velocity.manipulator.size());
+    const Eigen::VectorXd qpik_mani_acc_damping = Eigen::Map<const Eigen::VectorXd>(qpik.joint.acceleration.manipulator.data(), qpik.joint.acceleration.manipulator.size());
+    
+    const Eigen::VectorXd qpid_tracking = Eigen::Map<const Eigen::VectorXd>(qpid.tracking.weights.data(), qpid.tracking.weights.size());
+    const Eigen::VectorXd qpid_mani_vel_damping = Eigen::Map<const Eigen::VectorXd>(qpid.joint.velocity.manipulator.data(), qpid.joint.velocity.manipulator.size());
+    const Eigen::VectorXd qpid_mani_acc_damping = Eigen::Map<const Eigen::VectorXd>(qpid.joint.acceleration.manipulator.data(), qpid.joint.acceleration.manipulator.size());
+
+    std::ostringstream oss;
+    oss << "dyros robot controller gains" << "\n"
+        << "\tmanipulator_joint_gains" << "\n"
+        << "\t\tKp: " << mani_joint_kp.transpose() << "\n"
+        << "\t\tKv: " << mani_joint_kv.transpose() << "\n"
+        << "\ttask_gains" << "\n"
+        << "\t\tik.Kp: " << task_ik_kp.transpose() << "\n"
+        << "\t\tid.Kp: " << task_id_kp.transpose() << "\n"
+        << "\t\tid.Kv: " << task_id_kv.transpose() << "\n"
+        << "\tQPIK_weight" << "\n"
+        << "\t\ttracking.weights: " << qpik_tracking.transpose() << "\n"
+        << "\t\tjoint.velocity.manipulator: " << qpik_mani_damping.transpose() << "\n"
+        << "\t\tjoint.acceleration.manipulator: " << qpik_mani_acc_damping.transpose() << "\n"
+        << "\tQPID_weight" << "\n"
+        << "\t\ttracking.weights: " << qpid_tracking.transpose() << "\n"
+        << "\t\tjoint.velocity.manipulator: " << qpid_mani_vel_damping.transpose() << "\n"
+        << "\t\tjoint.acceleration.manipulator: " << qpid_mani_acc_damping.transpose();
+    LOGI(get_node(), "%s", oss.str().c_str());
+
+    robot_controller->setJointGain(mani_joint_kp, mani_joint_kv);
+    robot_controller->setIKGain(task_ik_kp);
+    robot_controller->setIDGain(task_id_kp, task_id_kv);
+    robot_controller->setQPIKGain(qpik_tracking, qpik_mani_damping, qpik_mani_acc_damping);
+    robot_controller->setQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping);
+    return true;
 }
 
 }  // namespace fr3_husky_controller

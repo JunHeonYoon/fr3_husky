@@ -26,7 +26,6 @@ GravityCompensation::GravityCompensation(const std::string& name, const NodePtr&
 : Base(name, node, model_updater),
   fr3_model_updater_(getFR3ModelUpdater(model_updater, name))
 {
-    robot_controller_ = std::make_unique<drc::Manipulator::RobotController>(fr3_model_updater_.robot_data_);
     RCLCPP_INFO(node_->get_logger(), "[%s] GravityCompensation created", name_.c_str());
 }
 
@@ -67,13 +66,13 @@ GravityCompensation::ComputeResult GravityCompensation::compute(const rclcpp::Ti
             zero_data[ee_name] = drc::TaskSpaceData::Zero();
             zero_qpid_tracking[ee_name] = Eigen::Vector6d::Zero();
         }
-        robot_controller_->setQPIDTrackingGain(zero_qpid_tracking);
+        fr3_model_updater_.robot_controller_->setQPIDTrackingGain(zero_qpid_tracking);
     
         Eigen::VectorXd opt_torque;
         opt_torque.setZero(model_updater_.manipulator_dof_);
     
         std::string time_verbose;
-        const bool qp_ok = robot_controller_->QPID(zero_data, opt_torque, time_verbose);
+        const bool qp_ok = fr3_model_updater_.robot_controller_->QPID(zero_data, opt_torque, time_verbose);
     
         if (qp_ok)
         {
