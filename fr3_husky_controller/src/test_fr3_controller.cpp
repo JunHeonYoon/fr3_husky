@@ -598,6 +598,7 @@ bool TestFR3Controller::loadDRCGains()
     const size_t expected_qpik_tracking = qpik.tracking.link_names.size() * task_dof;
     if (!check_vector_size("dyros_robot_controller.QPIK_weight.tracking.weights", expected_qpik_tracking, qpik.tracking.weights.size())) return false;
     if (!check_vector_size("dyros_robot_controller.QPIK_weight.joint.velocity.manipulator", manipulator_dof_, qpik.joint.velocity.manipulator.size())) return false;
+    if (!check_vector_size("dyros_robot_controller.QPIK_weight.joint.acceleration.manipulator", manipulator_dof_, qpik.joint.acceleration.manipulator.size())) return false;
 
     // QPID weights
     if (qpid.tracking.link_names.empty())
@@ -614,6 +615,7 @@ bool TestFR3Controller::loadDRCGains()
     mani_joint_kv_ = Eigen::Map<const Eigen::VectorXd>(joint.kv.data(), joint.kv.size());
 
     qpik_mani_damping_ = Eigen::Map<const Eigen::VectorXd>(qpik.joint.velocity.manipulator.data(), qpik.joint.velocity.manipulator.size());
+    qpik_mani_acc_damping_ = Eigen::Map<const Eigen::VectorXd>(qpik.joint.acceleration.manipulator.data(), qpik.joint.acceleration.manipulator.size());
 
     qpid_mani_vel_damping_ = Eigen::Map<const Eigen::VectorXd>(qpid.joint.velocity.manipulator.data(), qpid.joint.velocity.manipulator.size());
     qpid_mani_acc_damping_ = Eigen::Map<const Eigen::VectorXd>(qpid.joint.acceleration.manipulator.data(), qpid.joint.acceleration.manipulator.size());
@@ -651,8 +653,11 @@ bool TestFR3Controller::loadDRCGains()
     }
 
     robot_controller_->setJointGain(mani_joint_kp_, mani_joint_kv_);
-    robot_controller_->setTaskGain(task_kp_, task_kv_);
-    robot_controller_->setQPIKGain(qpik_tracking_, qpik_mani_damping_);
+    robot_controller_->setIKGain(task_kp_);
+    robot_controller_->setIDGain(task_kp_, task_kv_);
+    robot_controller_->setQPIKTrackingGain(qpik_tracking_);
+    robot_controller_->setQPIKJointVelGain(qpik_mani_damping_);
+    robot_controller_->setQPIKJointAccGain(qpik_mani_acc_damping_);
     robot_controller_->setQPIDGain(qpid_tracking_, qpid_mani_vel_damping_, qpid_mani_acc_damping_);
     return true;
 }

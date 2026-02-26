@@ -98,6 +98,12 @@ test_fr3_controller:
             default_value: [],
             description: "Weight for damping manipulator joint velocity (size must be 7 * num_robot)"
           }
+        acceleration:
+          manipulator: {
+            type: double_array,
+            default_value: [],
+            description: "Weight for damping manipulator joint acceleration (size must be 7 * num_robot)"
+          }
     QPID_weight:
       tracking:
         link_names: {
