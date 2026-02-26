@@ -328,7 +328,7 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
 
     publish_rate_ = params_.publish_rate;
 
-    mobi_state_pub_buf_.writeFromNonRT(model_updater_->getMobileState());
+    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
 
     joy_msg_received_.store(false, std::memory_order_release);
     estop_button_pressed_.store(false, std::memory_order_release);
@@ -555,7 +555,7 @@ controller_interface::return_type FR3HuskyActionController::update(const rclcpp:
     model_updater_->updateJointStates();
     model_updater_->updateRobotData();
 
-    mobi_state_pub_buf_.writeFromNonRT(model_updater_->getMobileState());
+    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
 
     if (!active_server_)
     {
@@ -787,10 +787,12 @@ bool FR3HuskyActionController::setJointIndex(const std::string& urdf_xml, drc::M
 
 void FR3HuskyActionController::publishFromMobileStateBuffer()
 {
-    const MobileState s = *mobi_state_pub_buf_.readFromRT();
+    const std::pair<Eigen::Affine2d, Eigen::Vector3d> s = *mobi_state_pub_buf_.readFromRT();
+    const Eigen::Affine2d base_pose_w = s.first;
+    const Eigen::Vector3d base_vel_b = s.second;
 
     // yaw from pose
-    const double yaw = Eigen::Rotation2Dd(s.base_pose_w.linear()).angle();
+    const double yaw = Eigen::Rotation2Dd(base_pose_w.linear()).angle();
 
     tf2::Quaternion q;
     q.setRPY(0.0, 0.0, yaw);
@@ -814,15 +816,15 @@ void FR3HuskyActionController::publishFromMobileStateBuffer()
             msg.twist.covariance[diag] = params_.twist_covariance_diagonal[i];
         }
 
-        msg.pose.pose.position.x = s.base_pose_w.translation()(0);
-        msg.pose.pose.position.y = s.base_pose_w.translation()(1);
+        msg.pose.pose.position.x = base_pose_w.translation()(0);
+        msg.pose.pose.position.y = base_pose_w.translation()(1);
         msg.pose.pose.orientation.x = q.x();
         msg.pose.pose.orientation.y = q.y();
         msg.pose.pose.orientation.z = q.z();
         msg.pose.pose.orientation.w = q.w();
 
-        msg.twist.twist.linear.x  = s.base_vel_b(0);
-        msg.twist.twist.angular.z = s.base_vel_b(2);
+        msg.twist.twist.linear.x  = base_vel_b(0);
+        msg.twist.twist.angular.z = base_vel_b(2);
 
         odometry_publisher_->publish(msg);
     }
@@ -834,11 +836,11 @@ void FR3HuskyActionController::publishFromMobileStateBuffer()
         tfm.transforms.resize(1);
         auto & t = tfm.transforms[0];
 
-        t.header.stamp = get_node()->now();  // 위와 동일
+        t.header.stamp = get_node()->now();
         t.header.frame_id = params_.odom_frame_id;
         t.child_frame_id  = params_.base_frame_id;
-        t.transform.translation.x = s.base_pose_w.translation()(0);
-        t.transform.translation.y = s.base_pose_w.translation()(1);
+        t.transform.translation.x = base_pose_w.translation()(0);
+        t.transform.translation.y = base_pose_w.translation()(1);
         t.transform.rotation.x = q.x();
         t.transform.rotation.y = q.y();
         t.transform.rotation.z = q.z();

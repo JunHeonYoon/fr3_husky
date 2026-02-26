@@ -24,66 +24,6 @@
 
 namespace fr3_husky_controller
 {
-struct ManipulatorState
-{
-    // Initial
-    std::vector<Eigen::Vector<double, FR3_DOF>> q_init;
-    std::vector<Eigen::Vector<double, FR3_DOF>> qdot_init;
-    std::vector<Eigen::Vector<double, FR3_DOF>> qddot_init;
-    Eigen::VectorXd q_total_init;
-    Eigen::VectorXd qdot_total_init;
-    Eigen::VectorXd qddot_total_init;
-
-    // Current
-    std::vector<Eigen::Vector<double, FR3_DOF>> q;
-    std::vector<Eigen::Vector<double, FR3_DOF>> qdot;
-    std::vector<Eigen::Vector<double, FR3_DOF>> qddot;
-    std::vector<Eigen::Vector<double, FR3_DOF>> torque;
-    Eigen::VectorXd q_total;
-    Eigen::VectorXd qdot_total;
-    Eigen::VectorXd qddot_total;
-    Eigen::VectorXd torque_total;
-
-    // Desired
-    std::vector<Eigen::Vector<double, FR3_DOF>> q_desired;
-    std::vector<Eigen::Vector<double, FR3_DOF>> qdot_desired;
-    std::vector<Eigen::Vector<double, FR3_DOF>> torque_desired;
-    Eigen::VectorXd q_desired_total;
-    Eigen::VectorXd qdot_desired_total;
-    Eigen::VectorXd torque_desired_total;
-
-    // Dynamics
-    std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M;
-    std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M_inv;
-    std::vector<Eigen::Vector<double, FR3_DOF>> c;
-    std::vector<Eigen::Vector<double, FR3_DOF>> g;
-    Eigen::MatrixXd M_total;
-    Eigen::MatrixXd M_inv_total;
-    Eigen::VectorXd c_total;
-    Eigen::VectorXd g_total;
-};
-
-struct MobileState
-{
-    // Pose (world) and velocity (world/base)
-    Eigen::Affine2d base_pose_w;
-    Eigen::Affine2d base_pose_w_desired;
-    Eigen::Affine2d base_pose_w_init;
-
-    Eigen::Vector3d base_vel_w;
-    Eigen::Vector3d base_vel_w_desired;
-    Eigen::Vector3d base_vel_w_init;
-
-    Eigen::Vector3d base_vel_b;
-    Eigen::Vector3d base_vel_b_desired;
-    Eigen::Vector3d base_vel_b_init;
-
-    // Wheels and command
-    Eigen::Vector2d wheel_pos; // (left, right)
-    Eigen::Vector2d wheel_vel; // (left, right)
-    Eigen::Vector2d wheel_vel_desired; // (left, right)
-};
-
 struct JointHandle
 {
     std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> state;
@@ -140,14 +80,19 @@ class ModelUpdaterBase
         const bool HasVelocityCommandInterface() { return has_velocity_command_interface_; }
         const bool HasEffortCommandInterface()   { return has_effort_command_interface_; }
 
-        const int getNumRobots() { return (int)(num_robots_); }
-        const int getManipulatorDOF() { return (int)(manipulator_dof_); }
         const double getDT() { return dt_; }
 
-        std::vector<std::string>& getEEName()             { return ee_names_; }
-        const std::vector<std::string>& getEEName() const { return ee_names_; }
-
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>>*getFrankaRobotModel() { return franka_robot_model_; }
+
+    public:
+        std::vector<std::string> ee_names_;
+        size_t num_robots_{0}; // number of FR3 arms
+        size_t manipulator_dof_{0};
+        const size_t mobile_dof_{2};
+        const size_t virtual_dof_{3};
+        double dt_{0.0};
+        const std::string arm_id_{"fr3"};
+
 
     protected:
         int jointNameToIndex(const std::string& iface_name);
@@ -155,13 +100,6 @@ class ModelUpdaterBase
     protected:
         rclcpp_lifecycle::LifecycleNode::SharedPtr node_;
 
-        size_t num_robots_{0}; // number of FR3 arms
-        size_t manipulator_dof_{0};
-        const size_t mobile_dof_{2};
-        const size_t virtual_dof_{3};
-        double dt_{0.0};
-        const std::string arm_id_{"fr3"};
-        std::vector<std::string> ee_names_;
 
 
         std::mutex robot_data_mutex_;

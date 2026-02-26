@@ -38,21 +38,46 @@ class FR3ModelUpdater final : public ModelUpdaterBase
         void setInitFromCurrent();
         void writeCommand(const Eigen::VectorXd& command);
 
-        ManipulatorState& getManipulatorState()             { return mani_state_; }
-        const ManipulatorState& getManipulatorState() const { return mani_state_; }
-
-        std::map<std::string, drc::TaskSpaceData>& getEEData()             { return ee_data_; }
-        const std::map<std::string, drc::TaskSpaceData>& getEEData() const { return ee_data_; }
-
-        std::shared_ptr<drc::Manipulator::RobotData> getRobotData() { return robot_data_; }
-
-    private:
-        std::vector<std::string> ee_names_;
+    public:
         std::map<std::string, drc::TaskSpaceData> ee_data_;
-
         std::shared_ptr<drc::Manipulator::RobotData> robot_data_;
+            
+        // Initial
+        std::vector<Eigen::Vector<double, FR3_DOF>> q_init_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> qdot_init_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> qddot_init_;
+        Eigen::VectorXd q_total_init_;
+        Eigen::VectorXd qdot_total_init_;
+        Eigen::VectorXd qddot_total_init_;
 
-        ManipulatorState mani_state_;
+        // Current
+        std::vector<Eigen::Vector<double, FR3_DOF>> q_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> qdot_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> qddot_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> torque_;
+        Eigen::VectorXd q_total_;
+        Eigen::VectorXd qdot_total_;
+        Eigen::VectorXd qddot_total_;
+        Eigen::VectorXd torque_total_;
+
+        // Desired
+        std::vector<Eigen::Vector<double, FR3_DOF>> q_desired_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> qdot_desired_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> torque_desired_;
+        Eigen::VectorXd q_desired_total_;
+        Eigen::VectorXd qdot_desired_total_;
+        Eigen::VectorXd torque_desired_total_;
+
+        // Dynamics
+        std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M_;
+        std::vector<Eigen::Matrix<double, FR3_DOF, FR3_DOF>> M_inv_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> c_;
+        std::vector<Eigen::Vector<double, FR3_DOF>> g_;
+        Eigen::MatrixXd M_total_;
+        Eigen::MatrixXd M_inv_total_;
+        Eigen::VectorXd c_total_;
+        Eigen::VectorXd g_total_;
+
 };
 
 }  // namespace fr3_husky_controller
