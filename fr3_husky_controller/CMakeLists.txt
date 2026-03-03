@@ -104,8 +104,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
                       test_fr3_controller_parameters
                       test_husky_controller_parameters
                       test_fr3_husky_controller_parameters
-                      controller_interface::controller_interface
-                      hardware_interface::hardware_interface
                       pluginlib::pluginlib
                       rclcpp::rclcpp
                       rclcpp_action::rclcpp_action
