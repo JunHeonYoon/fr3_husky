@@ -28,7 +28,7 @@
     <xacro:property name="robot_prefixes_str" value="${' '.join(robot_prefixes_list)}" />
 
     <xacro:property name="xyzs_str"
-                    value="${'0.345 0.215 0.26;0.345 -0.215 0.26' if '$(arg mobile)' == 'true' else '0 0.34 0.715;0 -0.34 0'}" />
+                    value="${'0.345 0.215 0.26;0.345 -0.215 0.26' if '$(arg mobile)' == 'true' else '0 0.34 0.715;0 -0.34 0.715'}" />
     <xacro:property name="rpys_str"
                     value="${'0 0 0.523598776;0 0 -0.523598776' if '$(arg mobile)' == 'true' else '0 0 0;0 0 0'}" />
 
