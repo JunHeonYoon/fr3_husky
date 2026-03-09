@@ -1,16 +1,22 @@
 # FR3 Husky ROS 2 Workspace
 
 ## Table of Contents
-- [Dependencies](#2-dependencies)
-- [Installation](#3-installation)
-- [Package Descriptions](#4-package-descriptions)
-- [Short Description](#41-short-description)
-- [Executables and Usage](#42-executables-and-usage)
+- [Dependencies](#dependencies)
+- [Installation](#installation)
+- [Package Descriptions](#package-descriptions)
+  - [fr3_husky_msgs](#fr3_husky_msgs)
+  - [fr3_husky_description](#fr3_husky_description)
+  - [fr3_husky_controller](#fr3_husky_controller)
+  - [fr3_husky_moveit_config](#fr3_husky_moveit_config)
+- [MuJoCo Simulation](#mujoco-simulation)
+- [Notes](#notes)
+
 ---
+
 ## Dependencies
 
 ### Required apt Packages
-- [ROS2 Humble](https://docs.ros.org/en/humble/index.html)  
+- [ROS2 Humble](https://docs.ros.org/en/humble/index.html)
 - [libfranka](https://frankarobotics.github.io/docs/libfranka/docs/installation.html) (Install it without franka_ros2 & franka_description!)
 
 ### Required Source Dependencies
@@ -18,6 +24,7 @@
 - [franka_description](https://github.com/JunHeonYoon/franka_description) - it includes multi_hardware_interface URDF
 - [husky](https://github.com/JunHeonYoon/husky) - fix for using with franka (1000Hz)
 - [dyros_robot_controller](https://github.com/JunHeonYoon/dyros_robot_controller) - for robot_data
+- [mujoco_ros_hardware](https://github.com/JunHeonYoon/mujoco_ros_hardware) - for MuJoCo simulation (optional)
 
 ---
 
@@ -50,11 +57,10 @@ colcon build --symlink-install --packages-up-to \
 ```bash
 source ~/ros2_ws/install/setup.bash
 ```
+
 ---
 
 ## Package Descriptions
-
-## Description
 
 ### `fr3_husky_msgs`
 - Defines custom action interfaces.
@@ -86,7 +92,6 @@ ros2 launch fr3_husky_description visualize_fr3_husky.launch.py \
 | ![single_fr3](fr3_husky_description/imgs/single_fr3_w_mobile.png)  | ![dual_fr3](fr3_husky_description/imgs/dual_fr3_w_mobile.png)    |
 
 
-
 ### `fr3_husky_controller`
 - Provides `ros2_control` controller plugins for:
   - FR3 test controller
@@ -102,7 +107,7 @@ ros2 launch fr3_husky_description visualize_fr3_husky.launch.py \
   - `fr3_husky_controller/FR3ActionController`
   - `fr3_husky_controller/FR3HuskyActionController`
 
-- Launch files:
+- Launch files (add `use_mujoco:=true` for simulation — see [MuJoCo Simulation](#mujoco-simulation)):
 ```bash
 # FR3 test controller (non-action)
 ros2 launch fr3_husky_controller fr3_controller.launch.py \
@@ -131,6 +136,7 @@ ros2 launch fr3_husky_controller fr3_husky_action_controller.launch.py \
   - `load_mobile`: `true|false` (FR3-only launch files)
   - `use_fake_hardware`: `true|false`
   - `fake_sensor_commands`: `true|false`
+  - `use_mujoco`: `true|false`
   - `joy_dev`, `joy_deadzone`, `joy_autorepeat_rate` (`fr3_husky_action_controller.launch.py` only)
 
 - Action usage examples (after action controller is running):
@@ -153,12 +159,9 @@ ros2 action send_goal \
   --feedback
 ```
 
-- Utility scripts (developer helper, not installed as ROS executables):
+- Action server code generation — see [ACTION_SERVER_CODEGEN.md](ACTION_SERVER_CODEGEN.md):
 ```bash
-# Generate FR3 action server 
 python3 fr3_husky_controller/generate_fr3_action_server.py GravityCompensation
-
-# Generate FR3+Husky action server 
 python3 fr3_husky_controller/generate_fr3_husky_action_server.py GravityCompensation
 ```
 
@@ -182,6 +185,21 @@ ros2 launch fr3_husky_moveit_config fr3_moveit.launch.py \
 
 ---
 
+## MuJoCo Simulation
+
+All controller launch files support `use_mujoco:=true` to run in MuJoCo instead of real or fake hardware. See [MUJOCO.md](MUJOCO.md) for supported combinations, scene files, and launch argument details.
+
+```bash
+# FR3 in MuJoCo (quick start)
+ros2 launch fr3_husky_controller fr3_controller.launch.py \
+  robot_side:=left load_gripper:=true load_mobile:=false use_mujoco:=true
+
+# FR3 + Husky in MuJoCo
+ros2 launch fr3_husky_controller fr3_husky_controller.launch.py \
+  robot_side:=left load_gripper:=true use_mujoco:=true
+```
+
+---
 
 ## Notes
 - Default FR3 IPs in launch files are hardcoded:
