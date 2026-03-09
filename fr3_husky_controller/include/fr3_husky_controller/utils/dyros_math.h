@@ -340,16 +340,18 @@ Eigen::Vector3d quinticSpline(
     double x_ddot_f); ///< End state ddot
 
 double lowPassFilter(double input, double prev, double ts, double tau);
-template <int N>
-Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
-{
-  Eigen::Matrix<double, N, 1> res;
-  for(int i=0; i<N; i++)
-  {
-    res(i) = lowPassFilter(input(i), prev(i), ts, tau);
-  }
-  return res;
-}
+// template <int N>
+// Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
+// {
+//   Eigen::Matrix<double, N, 1> res;
+//   for(int i=0; i<N; i++)
+//   {
+//     res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+//   }
+//   return res;
+// }
+
+Eigen::VectorXd lowPassFilter(const Eigen::Ref<Eigen::VectorXd>& input, const Eigen::Ref<Eigen::VectorXd>& prev, double ts, double tau);
 
 Eigen::Matrix3d angleaxis2rot(Eigen::Vector3d axis_angle_vector, double axis_angle);
 Eigen::Matrix3d quat2Rot(const Eigen::Vector4d quat);
@@ -399,4 +401,3 @@ Eigen::Isometry3d rigidRotation(const Eigen::Vector3d& cor,
                                 const Eigen::Vector3d& axis, 
                                 double angle);
 }
-

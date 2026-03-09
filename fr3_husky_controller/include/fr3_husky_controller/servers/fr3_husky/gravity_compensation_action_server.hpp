@@ -7,8 +7,6 @@
 #include <fr3_husky_controller/servers/action_server_base.hpp>
 #include <fr3_husky_controller/model/fr3_husky_model_updater.hpp>
 
-#include "dyros_robot_controller/mobile_manipulator/robot_controller.h"
-
 namespace fr3_husky_controller::servers::fr3_husky
 {
 
@@ -35,7 +33,6 @@ private:
     ResultPtr makeResult(StopReason reason) override;
 
 private:
-    std::unique_ptr<drc::MobileManipulator::RobotController> robot_controller_;
     FR3HuskyModelUpdater& fr3_husky_model_updater_;
     bool use_qp_{false};
 };

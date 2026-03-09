@@ -13,6 +13,8 @@
     <!-- Is the robot being controlled with ros2_control?" -->
     <xacro:arg name="ros2_control" default="false" />
 
+    <xacro:arg name="use_mujoco" default="false" />
+
     <!-- Should a fake hardware be used? -->
     <xacro:arg name="use_fake_hardware" default="false" />
 
@@ -150,6 +152,7 @@
         safety_distance="0.015"
         with_sc="$(arg with_sc)"
         ros2_control="$(arg ros2_control)"
+        use_mujoco="$(arg use_mujoco)"
         use_fake_hardware="$(arg use_fake_hardware)"
         fake_sensor_commands="$(arg fake_sensor_commands)"
         gazebo_effort="false"

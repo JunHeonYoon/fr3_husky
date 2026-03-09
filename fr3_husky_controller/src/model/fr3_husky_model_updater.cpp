@@ -14,37 +14,37 @@ bool FR3HuskyModelUpdater::initialize(size_t num_robots,
     }
 
     // Allocate manipulator state buffers
-    mani_state_.q_init.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.qdot_init.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.qddot_init.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.q_total_init.setZero(manipulator_dof_);
-    mani_state_.qdot_total_init.setZero(manipulator_dof_);
-    mani_state_.qddot_total_init.setZero(manipulator_dof_);
+    q_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    qdot_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    qddot_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    q_total_init_.setZero(manipulator_dof_);
+    qdot_total_init_.setZero(manipulator_dof_);
+    qddot_total_init_.setZero(manipulator_dof_);
 
-    mani_state_.q.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.qdot.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.qddot.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.torque.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.q_total.setZero(manipulator_dof_);
-    mani_state_.qdot_total.setZero(manipulator_dof_);
-    mani_state_.qddot_total.setZero(manipulator_dof_);
-    mani_state_.torque_total.setZero(manipulator_dof_);
+    q_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    qdot_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    qddot_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    torque_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    q_total_.setZero(manipulator_dof_);
+    qdot_total_.setZero(manipulator_dof_);
+    qddot_total_.setZero(manipulator_dof_);
+    torque_total_.setZero(manipulator_dof_);
 
-    mani_state_.q_desired.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.qdot_desired.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.torque_desired.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.q_desired_total.setZero(manipulator_dof_);
-    mani_state_.qdot_desired_total.setZero(manipulator_dof_);
-    mani_state_.torque_desired_total.setZero(manipulator_dof_);
+    q_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    qdot_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    torque_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    q_desired_total_.setZero(manipulator_dof_);
+    qdot_desired_total_.setZero(manipulator_dof_);
+    torque_desired_total_.setZero(manipulator_dof_);
 
-    mani_state_.M.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
-    mani_state_.M_inv.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
-    mani_state_.c.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.g.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    mani_state_.M_total.setZero(manipulator_dof_, manipulator_dof_);
-    mani_state_.M_inv_total.setZero(manipulator_dof_, manipulator_dof_);
-    mani_state_.c_total.setZero(manipulator_dof_);
-    mani_state_.g_total.setZero(manipulator_dof_);
+    M_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
+    M_inv_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
+    c_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    g_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    M_total_.setZero(manipulator_dof_, manipulator_dof_);
+    M_inv_total_.setZero(manipulator_dof_, manipulator_dof_);
+    c_total_.setZero(manipulator_dof_);
+    g_total_.setZero(manipulator_dof_);
 
     ee_data_.clear();
     for (const auto& name : ee_names_)
@@ -53,18 +53,18 @@ bool FR3HuskyModelUpdater::initialize(size_t num_robots,
     }
 
     // Mobile base init
-    mobi_state_.base_pose_w.setIdentity();
-    mobi_state_.base_pose_w_desired.setIdentity();
-    mobi_state_.base_pose_w_init.setIdentity();
-    mobi_state_.base_vel_w.setZero();
-    mobi_state_.base_vel_w_desired.setZero();
-    mobi_state_.base_vel_w_init.setZero();
-    mobi_state_.base_vel_b.setZero();
-    mobi_state_.base_vel_b_desired.setZero();
-    mobi_state_.base_vel_b_init.setZero();
-    mobi_state_.wheel_pos.setZero();
-    mobi_state_.wheel_vel.setZero();
-    mobi_state_.wheel_vel_desired.setZero();
+    base_pose_w_.setIdentity();
+    base_pose_w_desired_.setIdentity();
+    base_pose_w_init_.setIdentity();
+    base_vel_w_.setZero();
+    base_vel_w_desired_.setZero();
+    base_vel_w_init_.setZero();
+    base_vel_b_.setZero();
+    base_vel_b_desired_.setZero();
+    base_vel_b_init_.setZero();
+    wheel_pos_.setZero();
+    wheel_vel_.setZero();
+    wheel_vel_desired_.setZero();
 
     return true;
 }
@@ -74,21 +74,21 @@ void FR3HuskyModelUpdater::updateJointStates()
     if (!is_configured_ || !getHandlesReady()) return;
 
     // update FR3 joint state 
-    const Eigen::VectorXd last_qdot_total = mani_state_.qdot_total;
+    const Eigen::VectorXd last_qdot_total = qdot_total_;
     for (size_t i = 0; i < manipulator_dof_; ++i)
     {
-        if (has_position_state_interface_) mani_state_.q_total(i)      = robot_handle_.mani_joints[i].state[kPositionIndex].get().get_value();
-        if (has_velocity_state_interface_) mani_state_.qdot_total(i)   = robot_handle_.mani_joints[i].state[kVelocityIndex].get().get_value();
-        if (has_effort_state_interface_)   mani_state_.torque_total(i) = robot_handle_.mani_joints[i].state[kEffortIndex].get().get_value();
+        if (has_position_state_interface_) q_total_(i)      = robot_handle_.mani_joints[i].state[kPositionIndex].get().get_value();
+        if (has_velocity_state_interface_) qdot_total_(i)   = robot_handle_.mani_joints[i].state[kVelocityIndex].get().get_value();
+        if (has_effort_state_interface_)   torque_total_(i) = robot_handle_.mani_joints[i].state[kEffortIndex].get().get_value();
     }
-    mani_state_.qddot_total = (mani_state_.qdot_total - last_qdot_total) / dt_;
+    qddot_total_ = (qdot_total_ - last_qdot_total) / dt_;
 
     for (size_t r = 0; r < num_robots_; ++r)
     {
-        mani_state_.q[r]      = mani_state_.q_total.segment(FR3_DOF * r, FR3_DOF);
-        mani_state_.qdot[r]   = mani_state_.qdot_total.segment(FR3_DOF * r, FR3_DOF);
-        mani_state_.qddot[r]  = mani_state_.qddot_total.segment(FR3_DOF * r, FR3_DOF);
-        mani_state_.torque[r] = mani_state_.torque_total.segment(FR3_DOF * r, FR3_DOF);
+        q_[r]      = q_total_.segment(FR3_DOF * r, FR3_DOF);
+        qdot_[r]   = qdot_total_.segment(FR3_DOF * r, FR3_DOF);
+        qddot_[r]  = qddot_total_.segment(FR3_DOF * r, FR3_DOF);
+        torque_[r] = torque_total_.segment(FR3_DOF * r, FR3_DOF);
     }
 
     // update Husky joint state
@@ -109,8 +109,8 @@ void FR3HuskyModelUpdater::updateJointStates()
         left_vel /= static_cast<double>(robot_handle_.left_wheels.size());
         right_vel /= static_cast<double>(robot_handle_.right_wheels.size());
     }
-    mobi_state_.wheel_pos = Eigen::Vector2d(left_pos, right_pos);
-    mobi_state_.wheel_vel = Eigen::Vector2d(left_vel, right_vel);
+    wheel_pos_ = Eigen::Vector2d(left_pos, right_pos);
+    wheel_vel_ = Eigen::Vector2d(left_vel, right_vel);
 }
 
 void FR3HuskyModelUpdater::updateRobotData()
@@ -133,7 +133,7 @@ void FR3HuskyModelUpdater::updateRobotData()
     }
 
     // FR3 model update
-    mani_state_.M_total.setZero(manipulator_dof_, manipulator_dof_);
+    M_total_.setZero(manipulator_dof_, manipulator_dof_);
     for (size_t i = 0; i < num_robots_; ++i)
     {
         std::array<double, FR3_DOF * FR3_DOF> mass = (*franka_robot_model_)[i]->getMassMatrix();
@@ -142,31 +142,31 @@ void FR3HuskyModelUpdater::updateRobotData()
 
         {
             std::lock_guard<std::mutex> lock(robot_data_mutex_);
-            mani_state_.M[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, FR3_DOF, Eigen::RowMajor>>(mass.data());
-            mani_state_.c[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(coriolis.data());
-            mani_state_.g[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(gravity.data());
-            mani_state_.M_inv[i] = mani_state_.M[i].inverse();
+            M_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, FR3_DOF, Eigen::RowMajor>>(mass.data());
+            c_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(coriolis.data());
+            g_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(gravity.data());
+            M_inv_[i] = M_[i].inverse();
 
-            mani_state_.M_total.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = mani_state_.M[i];
-            mani_state_.M_inv_total.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = mani_state_.M_inv[i];
-            mani_state_.c_total.segment(FR3_DOF * i, FR3_DOF) = mani_state_.c[i];
-            mani_state_.g_total.segment(FR3_DOF * i, FR3_DOF) = mani_state_.g[i];
+            M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_[i];
+            M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_inv_[i];
+            c_total_.segment(FR3_DOF * i, FR3_DOF) = c_[i];
+            g_total_.segment(FR3_DOF * i, FR3_DOF) = g_[i];
         }
     }
 
 
     // using odometry for getting virtual joint (you can use SLAM instead)
-    mobi_state_.base_pose_w = robot_data_->computeBasePose(mobi_state_.wheel_pos, mobi_state_.wheel_vel);
-    mobi_state_.base_vel_b  = robot_data_->computeBaseVel(mobi_state_.wheel_pos, mobi_state_.wheel_vel);
-    mobi_state_.base_vel_w.head(2) = mobi_state_.base_pose_w.linear() * mobi_state_.base_vel_b.head(2);
-    mobi_state_.base_vel_w(2) = mobi_state_.base_vel_b(2);
+    base_pose_w_ = robot_data_->computeBasePose(wheel_pos_, wheel_vel_);
+    base_vel_b_  = robot_data_->computeBaseVel(wheel_pos_, wheel_vel_);
+    base_vel_w_.head(2) = base_pose_w_.linear() * base_vel_b_.head(2);
+    base_vel_w_(2) = base_vel_b_(2);
 
-    const Eigen::Vector3d base_pose_w{mobi_state_.base_pose_w.translation()(0), 
-                                      mobi_state_.base_pose_w.translation()(1),
-                                      Eigen::Rotation2Dd(mobi_state_.base_pose_w.linear()).angle()};
+    const Eigen::Vector3d base_pose_w{base_pose_w_.translation()(0), 
+                                      base_pose_w_.translation()(1),
+                                      Eigen::Rotation2Dd(base_pose_w_.linear()).angle()};
 
-    robot_data_->updateState(base_pose_w,             mobi_state_.wheel_pos, mani_state_.q_total,
-                             mobi_state_.base_vel_w,  mobi_state_.wheel_vel, mani_state_.qdot_total);
+    robot_data_->updateState(base_pose_w,             wheel_pos_, q_total_,
+                             base_vel_w_,  wheel_vel_, qdot_total_);
     
     
     for(auto & [ee_name, ee_data] : ee_data_)
@@ -185,16 +185,16 @@ void FR3HuskyModelUpdater::setInitFromCurrent()
         return;
     }
 
-    mani_state_.q_init = mani_state_.q;
-    mani_state_.qdot_init = mani_state_.qdot;
-    mani_state_.qddot_init = mani_state_.qddot;
-    mani_state_.q_total_init = mani_state_.q_total;
-    mani_state_.qdot_total_init = mani_state_.qdot_total;
-    mani_state_.qddot_total_init = mani_state_.qddot_total;
+    q_init_ = q_;
+    qdot_init_ = qdot_;
+    qddot_init_ = qddot_;
+    q_total_init_ = q_total_;
+    qdot_total_init_ = qdot_total_;
+    qddot_total_init_ = qddot_total_;
 
-    mobi_state_.base_pose_w_init = mobi_state_.base_pose_w;
-    mobi_state_.base_vel_w_init = mobi_state_.base_vel_w;
-    mobi_state_.base_vel_b_init = mobi_state_.base_vel_b;
+    base_pose_w_init_ = base_pose_w_;
+    base_vel_w_init_ = base_vel_w_;
+    base_vel_b_init_ = base_vel_b_;
 
     for (auto& [ee_name, ee_data] : ee_data_)
     {
@@ -267,7 +267,7 @@ void FR3HuskyModelUpdater::forceStopMobile()
         return;
     }
 
-    mobi_state_.wheel_vel_desired.setZero();
+    wheel_vel_desired_.setZero();
     for (auto& h : robot_handle_.left_wheels)  h.command.get().set_value(0.0);
     for (auto& h : robot_handle_.right_wheels) h.command.get().set_value(0.0);
 }

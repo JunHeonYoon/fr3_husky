@@ -96,6 +96,36 @@
       angular.z.max_velocity: 1.0
       angular.z.max_acceleration: 1.0
       angular.z.max_jerk: 0.0
+      dyros_robot_controller:
+        manipulator_joint_gains:
+          kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+        task_gains:
+          ik:
+            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+          id:
+            kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
+            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+        QPIK_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
+          joint: 
+            velocity:
+              manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
+              mobile: [0.1, 0.1, 0.1]
+        QPID_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
+          joint: 
+            velocity:
+              manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+              mobile: [0.0, 0.0, 0.0]
+            acceleration:
+              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+              mobile: [0.0, 0.0, 0.0]
 
   right_fr3_husky_action_controller:
     ros__parameters:
@@ -145,6 +175,36 @@
       angular.z.max_velocity: 1.0
       angular.z.max_acceleration: 1.0
       angular.z.max_jerk: 0.0
+      dyros_robot_controller:
+        manipulator_joint_gains:
+          kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+        task_gains:
+          ik:
+            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+          id:
+            kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
+            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+        QPIK_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
+          joint: 
+            velocity:
+              manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
+              mobile: [0.1, 0.1, 0.1]
+        QPID_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
+          joint: 
+            velocity:
+              manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+              mobile: [0.1, 0.1, 0.1]
   
   dual_fr3_husky_action_controller:
     ros__parameters:
@@ -200,6 +260,42 @@
       angular.z.max_velocity: 1.0
       angular.z.max_acceleration: 1.0
       angular.z.max_jerk: 0.0
+      dyros_robot_controller:
+        manipulator_joint_gains:
+          kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0,
+               600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0,
+               30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+        task_gains:
+          ik:
+            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+          id:
+            kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
+            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+        QPIK_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
+          joint: 
+            velocity:
+              manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+                            0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001,
+                            0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
+              mobile: [0.1, 0.1, 0.1]
+        QPID_weight:
+          tracking:
+            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
+          joint: 
+            velocity:
+              manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
+                            5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+              mobile: [0.1, 0.1, 0.1]
       
   test_left_fr3_husky_controller:
     ros__parameters:

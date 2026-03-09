@@ -650,6 +650,20 @@ double lowPassFilter(double input, double prev, double ts, double tau)
   return (tau * prev + ts * input) / (tau + ts);
 }
 
+Eigen::VectorXd lowPassFilter(const Eigen::Ref<Eigen::VectorXd>& input,
+                              const Eigen::Ref<Eigen::VectorXd>& prev,
+                              double ts,
+                              double tau)
+{
+  Eigen::VectorXd res;
+  res.setZero(input.size());
+  for (int i = 0; i < input.size(); i++)
+  {
+    res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+  }
+  return res;
+}
+
 Eigen::Matrix3d angleaxis2rot(Eigen::Vector3d axis_angle_vector, double axis_angle)
 {
   Eigen::Matrix3d ROT;

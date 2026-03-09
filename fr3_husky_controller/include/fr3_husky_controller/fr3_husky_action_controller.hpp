@@ -63,6 +63,7 @@ namespace std
 #include <fr3_husky_controller/model/fr3_husky_model_updater.hpp>
 
 #include "dyros_robot_controller/mobile_manipulator/robot_data.h"
+#include "dyros_robot_controller/mobile_manipulator/robot_controller.h"
 
 #include <fr3_husky_controller/servers/action_server_base.hpp>
 #include <fr3_husky_controller/servers/idle_control.hpp>
@@ -122,6 +123,8 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>> franka_robot_model_;
         std::unique_ptr<FR3HuskyModelUpdater> model_updater_;
 
+        bool loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller);
+
         // ========================================================================
         // ============================= Task Space Data ==========================
         // ========================================================================
@@ -171,7 +174,7 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         // Publish rate limiter
         double publish_rate_ = 50.0;
 
-        realtime_tools::RealtimeBuffer<MobileState> mobi_state_pub_buf_;
+        realtime_tools::RealtimeBuffer<std::pair<Eigen::Affine2d, Eigen::Vector3d>> mobi_state_pub_buf_;
         rclcpp::TimerBase::SharedPtr odom_timer_;
 
         void publishFromMobileStateBuffer();

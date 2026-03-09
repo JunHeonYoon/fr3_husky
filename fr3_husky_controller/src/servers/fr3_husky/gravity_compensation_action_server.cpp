@@ -26,7 +26,6 @@ GravityCompensation::GravityCompensation(const std::string& name, const NodePtr&
 : Base(name, node, model_updater),
   fr3_husky_model_updater_(getFR3HuskyModelUpdater(model_updater, name))
 {
-    robot_controller_ = std::make_unique<drc::MobileManipulator::RobotController>(fr3_husky_model_updater_.getRobotData());
     RCLCPP_INFO(node_->get_logger(), "[%s] GravityCompensation created", name_.c_str());
 }
 
@@ -62,34 +61,34 @@ GravityCompensation::ComputeResult GravityCompensation::compute(const rclcpp::Ti
         // For gravity compensation using QPID, set desired acceleration and tracking gains as zero.
         std::map<std::string, drc::TaskSpaceData> zero_data;
         std::map<std::string, Eigen::Vector6d> zero_qpid_tracking;
-        for (const auto& ee_name : model_updater_.getEEName())
+        for (const auto& ee_name : model_updater_.ee_names_)
         {
             zero_data[ee_name] = drc::TaskSpaceData::Zero();
             zero_qpid_tracking[ee_name] = Eigen::Vector6d::Zero();
         }
-        robot_controller_->setQPIDTrackingGain(zero_qpid_tracking);
+        fr3_husky_model_updater_.robot_controller_->setQPIDTrackingGain(zero_qpid_tracking);
     
         Eigen::VectorXd opt_torque, opt_wheel_qddot;
-        opt_torque.setZero(model_updater_.getManipulatorDOF());
+        opt_torque.setZero(model_updater_.manipulator_dof_);
         opt_wheel_qddot.setZero(2);
     
         std::string time_verbose;
-        const bool qp_ok = robot_controller_->QPID(zero_data, opt_wheel_qddot, opt_torque, time_verbose);
+        const bool qp_ok = fr3_husky_model_updater_.robot_controller_->QPID(zero_data, opt_wheel_qddot, opt_torque, time_verbose);
     
         if (qp_ok)
         {
-            fr3_husky_model_updater_.getManipulatorState().torque_desired_total = opt_torque - fr3_husky_model_updater_.getManipulatorState().g_total;
-            fr3_husky_model_updater_.getMobileState().wheel_vel_desired = fr3_husky_model_updater_.getMobileState().wheel_vel + opt_wheel_qddot * fr3_husky_model_updater_.getDT();
+            fr3_husky_model_updater_.torque_desired_total_ = opt_torque - fr3_husky_model_updater_.g_total_;
+            fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.wheel_vel_ + opt_wheel_qddot * fr3_husky_model_updater_.dt_;
         }
         else
         {
             RCLCPP_WARN(node_->get_logger(), "[%s] QPID solve failed", name_.c_str());
-            fr3_husky_model_updater_.getManipulatorState().torque_desired_total.setZero();
-            fr3_husky_model_updater_.getMobileState().wheel_vel_desired = fr3_husky_model_updater_.getMobileState().wheel_vel;
+            fr3_husky_model_updater_.torque_desired_total_.setZero();
+            fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.wheel_vel_;
         }
     
-        fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.getManipulatorState().torque_desired_total,
-                                              fr3_husky_model_updater_.getMobileState().wheel_vel_desired);
+        fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.torque_desired_total_,
+                                              fr3_husky_model_updater_.wheel_vel_desired_);
 
         auto fb = std::make_shared<ActionT::Feedback>();
         fb->is_qp_solved = qp_ok;
@@ -99,10 +98,10 @@ GravityCompensation::ComputeResult GravityCompensation::compute(const rclcpp::Ti
     }
     else
     {
-        fr3_husky_model_updater_.getManipulatorState().torque_desired_total.setZero();
-        fr3_husky_model_updater_.getMobileState().wheel_vel_desired.setZero();
-        fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.getManipulatorState().torque_desired_total,
-                                              fr3_husky_model_updater_.getMobileState().wheel_vel_desired);
+        fr3_husky_model_updater_.torque_desired_total_.setZero();
+        fr3_husky_model_updater_.wheel_vel_desired_.setZero();
+        fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.torque_desired_total_,
+                                              fr3_husky_model_updater_.wheel_vel_desired_);
 
         auto fb = std::make_shared<ActionT::Feedback>();
         fb->is_qp_solved = true;

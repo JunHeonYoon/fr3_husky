@@ -182,6 +182,7 @@ class TestFR3Controller : public controller_interface::ControllerInterface
         Eigen::VectorXd mani_joint_kp_;
         Eigen::VectorXd mani_joint_kv_;
         Eigen::VectorXd qpik_mani_damping_;
+        Eigen::VectorXd qpik_mani_acc_damping_;
         Eigen::VectorXd qpid_mani_vel_damping_;
         Eigen::VectorXd qpid_mani_acc_damping_;
         std::map<std::string, Eigen::Vector6d> task_kp_;

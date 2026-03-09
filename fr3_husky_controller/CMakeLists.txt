@@ -85,6 +85,8 @@ add_library(${PROJECT_NAME} SHARED
 
     src/servers/fr3/gravity_compensation_action_server.cpp
     src/servers/fr3_husky/gravity_compensation_action_server.cpp
+    src/servers/fr3/omega_haptic_action_server.cpp
+    src/servers/fr3_husky/omega_haptic_action_server.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -102,8 +104,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
                       test_fr3_controller_parameters
                       test_husky_controller_parameters
                       test_fr3_husky_controller_parameters
-                      controller_interface::controller_interface
-                      hardware_interface::hardware_interface
                       pluginlib::pluginlib
                       rclcpp::rclcpp
                       rclcpp_action::rclcpp_action
