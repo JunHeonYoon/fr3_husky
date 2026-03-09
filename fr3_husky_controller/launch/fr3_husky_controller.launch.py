@@ -60,6 +60,7 @@ def _launch_setup(context, *args, **kwargs):
     robot_side_raw = LaunchConfiguration('robot_side').perform(context)
     robot_sides = _parse_robot_side(robot_side_raw)
     robot_sides = _normalize_robot_sides(robot_sides)
+    use_mujoco = LaunchConfiguration('use_mujoco')
     load_gripper = LaunchConfiguration('load_gripper')
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands')
@@ -69,6 +70,7 @@ def _launch_setup(context, *args, **kwargs):
     def _to_bool(value: str) -> bool:
         return value.lower() in ('true', '1', 'yes', 'y')
     load_gripper_value = _to_bool(load_gripper.perform(context))
+    use_mujoco_value = _to_bool(use_mujoco.perform(context))
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -89,12 +91,20 @@ def _launch_setup(context, *args, **kwargs):
             get_package_share_directory('fr3_husky_description'),
             'robots', 'dual_fr3_husky.urdf.xacro'
         )
+        
+        # MJCF
+        mjcf_path = os.path.join(
+            get_package_share_directory('fr3_husky_description'),
+            'mjcf', 'dual_fr3_husky.xml.xacro'
+        )
+        
         robot_description_config = Command([
             FindExecutable(name='xacro'), ' ',
             franka_xacro_file,
             ' ros2_control:=true',
             ' with_sc:=false',
             ' fix_finger:=false',
+            ' use_mujoco:=', use_mujoco,
             ' hand:=', load_gripper,
             ' use_fake_hardware:=', use_fake_hardware,
             ' fake_sensor_commands:=', fake_sensor_commands,
@@ -106,6 +116,13 @@ def _launch_setup(context, *args, **kwargs):
             get_package_share_directory('fr3_husky_description'),
             'robots', 'single_fr3_husky.urdf.xacro'
         )
+        
+        # MJCF
+        mjcf_path = os.path.join(
+            get_package_share_directory('fr3_husky_description'),
+            'mjcf', 'single_fr3_husky.xml.xacro'
+        )
+        
         robot_description_config = Command([
             FindExecutable(name='xacro'), ' ',
             franka_xacro_file,
@@ -114,6 +131,7 @@ def _launch_setup(context, *args, **kwargs):
             ' fix_finger:=false',
             ' hand:=', load_gripper,
             ' side:=', normalized_sides[0],
+            ' use_mujoco:=', use_mujoco,
             ' use_fake_hardware:=', use_fake_hardware,
             ' fake_sensor_commands:=', fake_sensor_commands,
             ' virtual_joint:=false',
@@ -152,17 +170,6 @@ def _launch_setup(context, *args, **kwargs):
         raise RuntimeError("Failed to load fr3_husky_ros_controllers.yaml")
     controllers_root = controllers_yaml.get('/**', controllers_yaml)
 
-    def _set_controller_params(ctrl_name):
-        if ctrl_name not in controllers_root:
-            raise RuntimeError(f"Controller '{ctrl_name}' not found in fr3_husky_ros_controllers.yaml")
-        controllers_root[ctrl_name]['ros__parameters']['hand'] = load_gripper_value
-
-    if is_dual:
-        _set_controller_params('test_dual_fr3_husky_controller')
-    else:
-        controller_name = 'test_left_fr3_husky_controller' if normalized_sides[0] == 'left' else 'test_right_fr3_husky_controller'
-        _set_controller_params(controller_name)
-
     franka_broadcaster_names = (
         ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
         if is_dual
@@ -183,11 +190,22 @@ def _launch_setup(context, *args, **kwargs):
         joint_state_remap = 'dual_fr3_husky/joint_states'
     else:
         joint_state_remap = normalized_sides[0] + '_fr3_husky/joint_states'
+    
+    ros2_control_params = [robot_description, controllers_yaml_path]
+    if use_mujoco_value:
+        xacro_args = ' hand:=' + ('true' if load_gripper_value else 'false')
+        if not is_dual:
+            xacro_args += 'side:=' + normalized_sides[0]
+        ros2_control_params.extend([
+            {'mujoco_scene_xacro_path': mjcf_path},
+            {'mujoco_scene_xacro_args': xacro_args},
+        ])
+    
     ros2_control_node = Node(
         package='controller_manager',
         executable='ros2_control_node',
         namespace=namespace,
-        parameters=[robot_description, controllers_yaml_path],
+        parameters=ros2_control_params,
         remappings=[('joint_states', joint_state_remap)],
         output={'stdout': 'screen', 'stderr': 'screen'},
         on_exit=Shutdown(),
@@ -228,7 +246,8 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    franka_robot_state_broadcasters = [
+    f# franka_robot_state_broadcaster: real hardware only (skip with fake or mujoco)
+    franka_robot_state_broadcasters = [] if use_mujoco_value else [
         Node(
             package='controller_manager',
             executable='spawner',
@@ -242,6 +261,8 @@ def _launch_setup(context, *args, **kwargs):
     
     # gripper (only if you actually want it; and consider gating with load_gripper)
     gripper_launch_files = []
+    if use_mujoco_value:
+        pass  # no gripper in MuJoCo simulation
     if is_dual:
         for side in ['left', 'right']:
             robot_ip = '172.16.5.5' if side == 'left' else '172.16.6.6'
@@ -327,6 +348,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument('namespace', default_value='', description='Namespace for the robot'),
         DeclareLaunchArgument('load_gripper', default_value='true', description='Load gripper (true/false)'),
+        DeclareLaunchArgument('use_mujoco', default_value='false', description='Use Mujoco hardware interface'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
         DeclareLaunchArgument('db', default_value='False', description='Database flag'),
