@@ -45,16 +45,12 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
 endforeach()
 
 
-generate_parameter_library(test_fr3_controller_parameters
-    src/test_fr3_controller_parameters.yaml
+generate_parameter_library(fr3_controller_parameters
+    src/fr3_controller_parameters.yaml
 )
 
-generate_parameter_library(test_husky_controller_parameters
-    src/test_husky_controller_parameters.yaml
-)
-
-generate_parameter_library(test_fr3_husky_controller_parameters
-    src/test_fr3_husky_controller_parameters.yaml
+generate_parameter_library(fr3_husky_controller_parameters
+    src/fr3_husky_controller_parameters.yaml
 )
 
 generate_parameter_library(fr3_action_controller_parameters
@@ -72,10 +68,6 @@ add_library(${PROJECT_NAME} SHARED
     src/model/model_updater_base.cpp
     src/model/fr3_model_updater.cpp
     src/model/fr3_husky_model_updater.cpp
-
-    src/test_fr3_controller.cpp
-    src/test_husky_controller.cpp
-    src/test_fr3_husky_controller.cpp
 
     src/fr3_action_controller.cpp
     src/fr3_husky_action_controller.cpp
@@ -101,9 +93,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
-                      test_fr3_controller_parameters
-                      test_husky_controller_parameters
-                      test_fr3_husky_controller_parameters
+                      fr3_controller_parameters
+                      fr3_husky_controller_parameters
                       pluginlib::pluginlib
                       rclcpp::rclcpp
                       rclcpp_action::rclcpp_action
@@ -144,9 +135,8 @@ install(
 
 
 install(TARGETS ${PROJECT_NAME} 
-            test_fr3_controller_parameters 
-            test_husky_controller_parameters
-            test_fr3_husky_controller_parameters
+            fr3_controller_parameters 
+            fr3_husky_controller_parameters
             fr3_action_controller_parameters
             fr3_husky_action_controller_parameters
         EXPORT export_${PROJECT_NAME}
