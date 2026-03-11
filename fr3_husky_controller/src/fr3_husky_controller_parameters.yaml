@@ -1,14 +1,9 @@
-test_fr3_husky_controller:
+fr3_husky_controller:
   # FR3 
   robot_name: {
     type: string_array,
     default_value: ["left", "right"],
     description: "Robot name want to control (left/right)"
-  }
-  hand: {
-    type: bool,
-    default_value: true,
-    description: "Use franka hand?",
   }
   manipulator_joints: {
     type: string_array,
@@ -103,15 +98,20 @@ test_fr3_husky_controller:
     default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     description: "Odometry covariance for the encoder output of the robot for the speed. These values should be tuned to your robot's sample odometry data, but these values are a good place to start: ``[0.001, 0.001, 0.001, 0.001, 0.001, 0.01]``.",
   }
-  cmd_vel_timeout: {
-    type: double,
-    default_value: 0.5, # seconds
-    description: "Timeout in seconds, after which input command on ``cmd_vel`` topic is considered staled.",
-  }
   publish_rate: {
     type: double,
     default_value: 50.0, # Hz
     description: "Publishing rate (Hz) of the odometry and TF messages.",
+  }
+  use_estop: {
+    type: bool,
+    default_value: true,
+    description: "Enable joystick-based e-stop for mobile wheel commands.",
+  }
+  estop_button_index: {
+    type: int,
+    default_value: 0,
+    description: "Joy message button index used for e-stop. While pressed, wheel commands are forced to zero.",
   }
   linear:
     x:
@@ -142,96 +142,3 @@ test_fr3_husky_controller:
         type: double,
         default_value: .NAN,
       }
-  # Dyros Robot Controller
-  dyros_robot_controller:
-    manipulator_joint_gains: 
-      use_mass_matrix: {
-        type: bool,
-        default_value: false,
-        description: "When set to true, use joint space mass matrix for PD control (size must be 7*num_robot)"
-      }
-      kp: {
-        type: double_array,
-        default_value: [],
-        description: "Manipulator joint position gains for PD control (size must be 7*num_robot)"
-      }
-      kv: {
-        type: double_array,
-        default_value: [],
-        description: "Manipulator joint velocity gains for PD control (size must be 7*num_robot)"
-      }
-    task_gains:
-      link_names: {
-        type: string_array,
-        default_value: [],
-        description: "Link names for setting PD control"
-      }
-      kp: {
-        type: double_array,
-        default_value: [],
-        description: "Task space position gains for PD control (size must be 6 * link_names)"
-      }
-      kv: {
-        type: double_array,
-        default_value: [],
-        description: "Task space velocity gains for PD control (size must be 6 * link_names)"
-      }
-    QPIK_weight:
-      tracking:
-        link_names: {
-          type: string_array,
-          default_value: [],
-          description: "Link names for setting QPIK weights"
-        }
-        weights: {
-          type: double_array,
-          default_value: [],
-          description: "Weight for track given task space velocity (size must be 6 * link_names)"
-        }
-      joint:
-        velocity: 
-          manipulator: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping manipulator joint velocity (size must be 7 * num_robot)"
-          }
-          mobile: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping mobile base velocity (size must be 3)"
-          }
-    QPID_weight:
-      tracking:
-        link_names: {
-          type: string_array,
-          default_value: [],
-          description: "Link names for setting QPID weights"
-        }
-        weights: {
-          type: double_array,
-          default_value: [],
-          description: "Weight for track given task space acceleration (size must be 6 * link_names)"
-        }
-      joint:
-        velocity: 
-          manipulator: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping manipulator joint velocity (size must be 7 * num_robot)"
-          }
-          mobile: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping mobile base velocity (size must be 3)"
-          }
-        acceleration: 
-          manipulator: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping manipulator joint acceleration (size must be 7 * num_robot)"
-          }
-          mobile: {
-            type: double_array,
-            default_value: [],
-            description: "Weight for damping mobile base acceleration (size must be 3)"
-          }

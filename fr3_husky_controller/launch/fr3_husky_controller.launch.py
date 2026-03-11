@@ -54,6 +54,7 @@ def _launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace         = LaunchConfiguration('namespace').perform(context)
+    controller_name   = LaunchConfiguration('controller_name').perform(context)
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -118,7 +119,7 @@ def _launch_setup(context, *args, **kwargs):
     rsp_remappings = [('joint_states', joint_states_topic)] if use_mujoco.lower() == 'true' else []
 
     # Controller / broadcaster names
-    main_controller = 'test_dual_fr3_husky_controller' if is_dual else f'test_{robot_sides[0]}_fr3_husky_controller'
+    main_controller = f'dual_{controller_name}' if is_dual else f'{robot_sides[0]}_{controller_name}'
     franka_broadcaster_names = (
         ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
         if is_dual
@@ -244,6 +245,7 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('controller_name',   default_value='test_fr3_husky_controller', description='Base controller name (prefixed with left_/right_/dual_)'),
         DeclareLaunchArgument('robot_side',        default_value='left',  description="Robot side: left, right, or dual"),
         DeclareLaunchArgument('namespace',         default_value='',      description='Namespace for the robot'),
         DeclareLaunchArgument('load_gripper',      default_value='true',  description='Load gripper (true/false)'),

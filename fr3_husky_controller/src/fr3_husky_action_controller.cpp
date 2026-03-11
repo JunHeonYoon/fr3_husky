@@ -6,7 +6,7 @@ namespace fr3_husky_controller
 {
 namespace
 {
-constexpr const char* kJoyTopic = "/joy";
+    constexpr const char* kJoyTopic = "/joy";
 }  // namespace
 
 controller_interface::InterfaceConfiguration FR3HuskyActionController::state_interface_configuration() const

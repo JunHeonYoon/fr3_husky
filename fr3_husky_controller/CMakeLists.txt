@@ -79,6 +79,9 @@ add_library(${PROJECT_NAME} SHARED
     src/servers/fr3_husky/gravity_compensation_action_server.cpp
     src/servers/fr3/omega_haptic_action_server.cpp
     src/servers/fr3_husky/omega_haptic_action_server.cpp
+    
+    src/test_fr3_controller.cpp
+    src/test_fr3_husky_controller.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
