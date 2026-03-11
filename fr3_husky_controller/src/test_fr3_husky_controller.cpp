@@ -203,20 +203,21 @@ CallbackReturn TestFr3HuskyController::on_configure(const rclcpp_lifecycle::Stat
 
     for (const auto& robot_name : robot_names_)
     {
-        q_init_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_init_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         qddot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        q_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qddot_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         torque_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        q_desired_[robot_name]      = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_desired_[robot_name]   = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         torque_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        M_[robot_name]     = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
+        M_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
         M_inv_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
-        c_[robot_name]     = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        g_[robot_name]     = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        c_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        g_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
     }
 
     q_total_init_.setZero(manipulator_dof_);
@@ -228,6 +229,7 @@ CallbackReturn TestFr3HuskyController::on_configure(const rclcpp_lifecycle::Stat
     torque_total_.setZero(manipulator_dof_);
     q_desired_total_.setZero(manipulator_dof_);
     qdot_desired_total_.setZero(manipulator_dof_);
+    qddot_desired_total_.setZero(manipulator_dof_);
     torque_desired_total_.setZero(manipulator_dof_);
     M_total_.setZero(manipulator_dof_, manipulator_dof_);
     M_inv_total_.setZero(manipulator_dof_, manipulator_dof_);
@@ -483,7 +485,7 @@ controller_interface::return_type TestFr3HuskyController::update(const rclcpp::T
     {
         for (size_t i = 0; i < num_robots_; ++i)
         {
-            q_desired_[robot_names_[i]] = q_[robot_names_[i]];
+            q_desired_[robot_names_[i]] = q_init_[robot_names_[i]];
             q_desired_total_.segment(i * FR3_DOF, FR3_DOF) = q_desired_[robot_names_[i]];
         }
         wheel_vel_desired_.setZero();
@@ -876,10 +878,10 @@ void TestFr3HuskyController::setInitfromCurrent()
 {
     q_init_    = q_;
     qdot_init_ = qdot_;
-    qddot_init_ = qddot_;
+    qddot_init_ = qdot_;
     q_total_init_    = q_total_;
     qdot_total_init_ = qdot_total_;
-    qddot_total_init_ = qddot_total_;
+    qddot_total_init_ = qdot_total_;
     base_pose_w_init_ = base_pose_w_;
     base_vel_w_init_  = base_vel_w_;
     base_vel_b_init_  = base_vel_b_;

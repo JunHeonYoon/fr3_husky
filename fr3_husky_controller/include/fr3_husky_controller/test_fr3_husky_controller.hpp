@@ -147,9 +147,11 @@ private:
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_desired_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> torque_desired_;
     Eigen::VectorXd q_desired_total_;
     Eigen::VectorXd qdot_desired_total_;
+    Eigen::VectorXd qddot_desired_total_;
     Eigen::VectorXd torque_desired_total_;
 
     // Dynamics

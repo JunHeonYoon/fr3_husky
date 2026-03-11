@@ -173,19 +173,27 @@ private:
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_init_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_init_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_init_;
+    Eigen::VectorXd q_total_init_;
+    Eigen::VectorXd qdot_total_init_;
+    Eigen::VectorXd qddot_total_init_;
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> torque_;
     Eigen::VectorXd q_total_;
     Eigen::VectorXd qdot_total_;
+    Eigen::VectorXd qddot_total_;
     Eigen::VectorXd torque_total_;
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_desired_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> torque_desired_;
     Eigen::VectorXd q_desired_total_;
     Eigen::VectorXd qdot_desired_total_;
+    Eigen::VectorXd qddot_desired_total_;
     Eigen::VectorXd torque_desired_total_;
 
     // Dynamics
@@ -412,13 +420,16 @@ CallbackReturn {class_name}::on_configure(const rclcpp_lifecycle::State& /*previ
 
     for (const auto& robot_name : robot_names_)
     {{
-        q_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        q_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_init_[robot_name]     = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_init_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_[robot_name]      = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_[robot_name]   = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         torque_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        q_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
-        qdot_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_desired_[robot_name]      = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_desired_[robot_name]   = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_desired_[robot_name]  = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         torque_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
         M_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
         M_inv_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
@@ -426,11 +437,16 @@ CallbackReturn {class_name}::on_configure(const rclcpp_lifecycle::State& /*previ
         g_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
     }}
 
+    q_total_init_.setZero(manipulator_dof_);
+    qdot_total_init_.setZero(manipulator_dof_);
+    qddot_total_init_.setZero(manipulator_dof_);
     q_total_.setZero(manipulator_dof_);
     qdot_total_.setZero(manipulator_dof_);
+    qddot_total_.setZero(manipulator_dof_);
     torque_total_.setZero(manipulator_dof_);
     q_desired_total_.setZero(manipulator_dof_);
     qdot_desired_total_.setZero(manipulator_dof_);
+    qddot_desired_total_.setZero(manipulator_dof_);
     torque_desired_total_.setZero(manipulator_dof_);
     M_total_.setZero(manipulator_dof_, manipulator_dof_);
     M_inv_total_.setZero(manipulator_dof_, manipulator_dof_);
@@ -567,7 +583,7 @@ controller_interface::return_type {class_name}::update(const rclcpp::Time& /*tim
     {{
         for (size_t i = 0; i < num_robots_; ++i)
         {{
-            q_desired_[robot_names_[i]] = q_[robot_names_[i]];
+            q_desired_[robot_names_[i]] = q_init_[robot_names_[i]];
             q_desired_total_.segment(i * FR3_DOF, FR3_DOF) = q_desired_[robot_names_[i]];
         }}
         writeCommandInterfaces(q_desired_total_);
@@ -695,11 +711,14 @@ void {class_name}::updateJointStates()
         if (has_effort_state_interface_)   torque_total_(i) = registered_manipulator_joint_handles_[i].state[kEffortIndex].get().get_value();
     }}
 
+    qddot_total_ = (qdot_total_ - last_qdot_total) / dt_;
+
     for (size_t r = 0; r < num_robots_; ++r)
     {{
         const std::string& robot_name = robot_names_[r];
         q_[robot_name]      = q_total_.segment(FR3_DOF * r, FR3_DOF);
         qdot_[robot_name]   = qdot_total_.segment(FR3_DOF * r, FR3_DOF);
+        qddot_[robot_name]  = qddot_total_.segment(FR3_DOF * r, FR3_DOF);
         torque_[robot_name] = torque_total_.segment(FR3_DOF * r, FR3_DOF);
     }}
 }}
@@ -795,8 +814,10 @@ void {class_name}::setInitfromCurrent()
 {{
     q_init_    = q_;
     qdot_init_ = qdot_;
+    qddot_init_ = qdot_;
     q_total_init_    = q_total_;
     qdot_total_init_ = qdot_total_;
+    qddot_total_init_ = qdot_total_;
     x_init_    = x_;
     xdot_init_ = xdot_;
     control_start_time_ = play_time_;

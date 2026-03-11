@@ -106,19 +106,27 @@ private:
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_init_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_init_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_init_;
+    Eigen::VectorXd q_total_init_;
+    Eigen::VectorXd qdot_total_init_;
+    Eigen::VectorXd qddot_total_init_;
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> torque_;
     Eigen::VectorXd q_total_;
     Eigen::VectorXd qdot_total_;
+    Eigen::VectorXd qddot_total_;
     Eigen::VectorXd torque_total_;
 
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> q_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> qdot_desired_;
+    std::map<std::string, Eigen::Vector<double, FR3_DOF>> qddot_desired_;
     std::map<std::string, Eigen::Vector<double, FR3_DOF>> torque_desired_;
     Eigen::VectorXd q_desired_total_;
     Eigen::VectorXd qdot_desired_total_;
+    Eigen::VectorXd qddot_desired_total_;
     Eigen::VectorXd torque_desired_total_;
 
     // Dynamics
