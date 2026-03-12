@@ -54,8 +54,6 @@
     ros__parameters:
       update_rate: 1000  # Hz
       robot_name: ["left"]
-      hand: true
-      mobile_base: false
       manipulator_joints:
         - left_fr3_joint1
         - left_fr3_joint2
@@ -101,8 +99,6 @@
     ros__parameters:
       update_rate: 1000  # Hz
       robot_name: ["right"]
-      hand: true
-      mobile_base: false
       manipulator_joints:
         - right_fr3_joint1
         - right_fr3_joint2
@@ -148,8 +144,6 @@
     ros__parameters:
       update_rate: 1000  # Hz
       robot_name: ["left", "right"]
-      hand: true
-      mobile_base: false
       manipulator_joints:
         - left_fr3_joint1
         - left_fr3_joint2

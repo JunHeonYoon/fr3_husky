@@ -181,18 +181,23 @@ def _launch_setup(context, *args, **kwargs):
             arguments=[main_controller, '--controller-manager-timeout', '60'],
             output='screen',
         ),
-        # husky teleop/mux: relevant for both real hardware and MuJoCo
+        # joy_node without namespace → publishes /joy (required by controller e-stop)
         Node(
-            package='twist_mux',
-            executable='twist_mux',
+            package='joy',
+            executable='joy_node',
+            name='joy_node',
             output='screen',
-            remappings=[('/cmd_vel_out', f'/{main_controller}/cmd_vel_unstamped')],
-            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'twist_mux.yaml'])],
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([FindPackageShare('husky_control'), 'launch', 'teleop_joy.launch.py'])
-            ),
+        # teleop_twist_joy: remaps joy → /joy so it uses the same joy_node above
+        Node(
+            namespace='joy_teleop',
+            package='teleop_twist_joy',
+            executable='teleop_node',
+            name='teleop_twist_joy_node',
+            output='screen',
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
+            remappings=[('joy', '/joy')],
         ),
         # husky_control (robot_localization): real hardware only
         IncludeLaunchDescription(

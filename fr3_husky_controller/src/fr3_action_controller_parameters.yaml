@@ -5,16 +5,6 @@ fr3_action_controller:
     default_value: ["left", "right"],
     description: "Robot name want to control (left/right)"
   }
-  hand: {
-    type: bool,
-    default_value: true,
-    description: "Use franka hand?",
-  }
-  mobile_base: {
-    type: bool,
-    default_value: false,
-    description: "Use Husky as base?",
-  }
   manipulator_joints: {
     type: string_array,
     default_value: [],

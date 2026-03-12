@@ -78,9 +78,6 @@ class FR3ActionController : public controller_interface::ControllerInterface
     inline static constexpr size_t kPositionIndex = 0;
     inline static constexpr size_t kVelocityIndex = 1;
     inline static constexpr size_t kEffortIndex   = 2;
-    inline static constexpr size_t kFeedbackPositionIndex = 0;
-    inline static constexpr size_t kFeedbackVelocityIndex = 1;
-    inline static constexpr size_t kFeedbackEffortIndex = 2;
 
     public:
         // ========================================================================
@@ -99,14 +96,12 @@ class FR3ActionController : public controller_interface::ControllerInterface
         // =========================== Franka robot Data ==========================
         // ========================================================================
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>> franka_robot_model_;
-        std::unique_ptr<FR3ModelUpdater> model_updater_;
-
-        bool loadDRCGains(std::shared_ptr<drc::Manipulator::RobotController> robot_controller);
-
+        bool use_franka_model_{false};
+        
         // ========================================================================
         // ============================= Task Space Data ==========================
         // ========================================================================
-        std::vector<std::string> ee_name_;
+        std::vector<std::string> ee_names_;
 
         // ========================================================================
         // =========================== Controller data ============================
@@ -126,7 +121,7 @@ class FR3ActionController : public controller_interface::ControllerInterface
         size_t manipulator_dof_{0};
 
         // ========================================================================
-        // ============================ Mutex & Thread ============================
+        // ============================ Interfaces Setup ==========================
         // ========================================================================
         // Interface ordering (keeps indices consistent across interface types).
         const std::vector<std::string> allowed_interface_types_ = {
@@ -147,6 +142,8 @@ class FR3ActionController : public controller_interface::ControllerInterface
         // ========================================================================
         // ============================ Action Servers ============================
         // ========================================================================
+        std::unique_ptr<FR3ModelUpdater> model_updater_;
+        bool loadDRCGains(std::shared_ptr<drc::Manipulator::RobotController> robot_controller);
         std::vector<std::shared_ptr<fr3_husky_controller::servers::ActionServerManager>> action_servers_;
         std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> active_server_;
         std::unique_ptr<fr3_husky_controller::servers::IdleControl> idle_control_;

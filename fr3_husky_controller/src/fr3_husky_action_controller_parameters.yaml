@@ -5,11 +5,6 @@ fr3_husky_action_controller:
     default_value: ["left", "right"],
     description: "Robot name want to control (left/right)"
   }
-  hand: {
-    type: bool,
-    default_value: true,
-    description: "Use franka hand?",
-  }
   manipulator_joints: {
     type: string_array,
     default_value: [],
