@@ -22,6 +22,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <controller_interface/controller_interface.hpp>
 #include <controller_interface/helpers.hpp>
+#include <controller_manager_msgs/srv/list_hardware_interfaces.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <rclcpp_lifecycle/state.hpp>
@@ -112,9 +113,9 @@ private:
     pinocchio::Model pin_model_;
     pinocchio::Data pin_data_;
     bool use_pin_{false};
-    std::map<std::string, Eigen::Affine3d> T_base_link0_;
-
+    
     // Precomputed pinocchio indices/IDs
+    std::map<std::string, Eigen::Affine3d> T_base_link0_; // footprint for mobile base to fr3_link0
     std::map<std::string, std::array<int, FR3_DOF>> pin_q_idx_;
     std::map<std::string, std::array<int, FR3_DOF>> pin_v_idx_;
     std::map<std::string, pinocchio::FrameIndex>    pin_link0_id_;

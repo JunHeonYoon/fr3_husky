@@ -37,6 +37,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     tf2
     tf2_msgs
     control_msgs
+    controller_manager_msgs
 )
 
 find_package(ament_cmake REQUIRED)
@@ -129,6 +130,7 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     realtime_tools
     tf2
     tf2_msgs
+    controller_manager_msgs
 )
 
 install(

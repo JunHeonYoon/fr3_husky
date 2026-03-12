@@ -1,6 +1,7 @@
 #include "fr3_husky_controller/test_fr3_husky_controller.hpp"
 
 #include <unordered_set>
+#include <controller_manager_msgs/srv/list_hardware_interfaces.hpp>
 
 namespace fr3_husky_controller
 {
@@ -17,13 +18,16 @@ controller_interface::InterfaceConfiguration TestFr3HuskyController::state_inter
         }
     }
 
-    for (size_t i = 0; i < num_robots_; ++i)
+    if (!use_pin_)
     {
-        for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+        for (size_t i = 0; i < num_robots_; ++i)
         {
-            conf.names.push_back(name);
+            for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+            {
+                conf.names.push_back(name);
+            }
+            conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
         }
-        conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
     }
 
     for (const auto& joint_name : params_.left_wheel_names)
@@ -153,53 +157,30 @@ CallbackReturn TestFr3HuskyController::on_configure(const rclcpp_lifecycle::Stat
     }
     dt_ = 1.0 / static_cast<double>(get_update_rate());
 
-    franka_robot_model_.clear();
-    for (const auto& name : params_.robot_name)
-    {
-        franka_robot_model_.push_back(
-            std::make_unique<franka_semantic_components::FrankaRobotModel>(
-                name + "_" + arm_id_ + "/robot_model",
-                name + "_" + arm_id_ + "/robot_state"));
-    }
-
     auto tmp_node = rclcpp::Node::make_shared("_tmp_urdf_client_" + std::string(get_node()->get_name()));
     auto param_client = std::make_shared<rclcpp::SyncParametersClient>(tmp_node, "controller_manager");
     param_client->wait_for_service();
     auto cm_params = param_client->get_parameters({"robot_description"});
     std::string urdf_xml = cm_params[0].value_to_string();
 
-    pinocchio::urdf::buildModelFromXML(urdf_xml, pin_model_);
-    pin_data_ = pinocchio::Data(pin_model_);
+    // When using MuJoCo, do not use franka sementic segment
+    use_pin_ = (urdf_xml.find("mujoco_ros_hardware/MujocoHardwareInterface") != std::string::npos);
+    LOGW(get_node(), "Franka model: %s", !use_pin_ ? "available" : "unavailable (pinocchio fallback)");
 
-    // Compute fixed T_footprint_link0 transforms
+    franka_robot_model_.clear();
+    if (!use_pin_)
     {
-        pinocchio::forwardKinematics(pin_model_, pin_data_, Eigen::VectorXd::Zero(pin_model_.nq));
-        pinocchio::updateFramePlacements(pin_model_, pin_data_);
-
-        pinocchio::FrameIndex footprint_id = static_cast<pinocchio::FrameIndex>(-1);
-        for (pinocchio::FrameIndex fi = 0; fi < static_cast<pinocchio::FrameIndex>(pin_model_.nframes); ++fi)
+        for (const auto& name : params_.robot_name)
         {
-            if (pin_model_.frames[fi].name.find("footprint") != std::string::npos)
-            {
-                footprint_id = fi;
-                break;
-            }
-        }
-        if (footprint_id == static_cast<pinocchio::FrameIndex>(-1))
-        {
-            LOGE(get_node(), "No 'footprint' frame found in pinocchio model. T_base_link0 will be identity.");
-        }
-        const pinocchio::SE3 T_world_footprint = (footprint_id != static_cast<pinocchio::FrameIndex>(-1))
-            ? pin_data_.oMf[footprint_id] : pinocchio::SE3::Identity();
-
-        for (const auto& robot_name : robot_names_)
-        {
-            const std::string link0_name = robot_name + "_" + arm_id_ + "_link0";
-            const pinocchio::FrameIndex link0_id = pin_model_.getFrameId(link0_name);
-            const pinocchio::SE3 T_footprint_link0 = T_world_footprint.actInv(pin_data_.oMf[link0_id]);
-            T_base_link0_[robot_name] = Eigen::Affine3d(T_footprint_link0.toHomogeneousMatrix());
+            franka_robot_model_.push_back(
+                std::make_unique<franka_semantic_components::FrankaRobotModel>(
+                    name + "_" + arm_id_ + "/robot_model",
+                    name + "_" + arm_id_ + "/robot_state"));
         }
     }
+
+    pinocchio::urdf::buildModelFromXML(urdf_xml, pin_model_);
+    pin_data_ = pinocchio::Data(pin_model_);
 
     for (const auto& robot_name : robot_names_)
     {
@@ -247,6 +228,36 @@ CallbackReturn TestFr3HuskyController::on_configure(const rclcpp_lifecycle::Stat
         const std::string link8    = name + "_" + arm_id_ + "_link8";
         const bool has_hand = pin_model_.getFrameId(hand_tcp) < static_cast<pinocchio::FrameIndex>(pin_model_.nframes);
         ee_names_.push_back(has_hand ? hand_tcp : link8);
+    }
+
+    // Compute fixed T_footprint_link0 transforms
+    {
+        pinocchio::forwardKinematics(pin_model_, pin_data_, Eigen::VectorXd::Zero(pin_model_.nq));
+        pinocchio::updateFramePlacements(pin_model_, pin_data_);
+
+        pinocchio::FrameIndex footprint_id = static_cast<pinocchio::FrameIndex>(-1);
+        for (pinocchio::FrameIndex fi = 0; fi < static_cast<pinocchio::FrameIndex>(pin_model_.nframes); ++fi)
+        {
+            if (pin_model_.frames[fi].name.find("footprint") != std::string::npos)
+            {
+                footprint_id = fi;
+                break;
+            }
+        }
+        if (footprint_id == static_cast<pinocchio::FrameIndex>(-1))
+        {
+            LOGE(get_node(), "No 'footprint' frame found in pinocchio model. T_base_link0 will be identity.");
+        }
+        const pinocchio::SE3 T_world_footprint = (footprint_id != static_cast<pinocchio::FrameIndex>(-1))
+            ? pin_data_.oMf[footprint_id] : pinocchio::SE3::Identity();
+
+        for (const auto& robot_name : robot_names_)
+        {
+            const std::string link0_name = robot_name + "_" + arm_id_ + "_link0";
+            const pinocchio::FrameIndex link0_id = pin_model_.getFrameId(link0_name);
+            const pinocchio::SE3 T_footprint_link0 = T_world_footprint.actInv(pin_data_.oMf[link0_id]);
+            T_base_link0_[robot_name] = Eigen::Affine3d(T_footprint_link0.toHomogeneousMatrix());
+        }
     }
 
     q_pin_    = Eigen::VectorXd::Zero(pin_model_.nq);
@@ -420,17 +431,20 @@ CallbackReturn TestFr3HuskyController::on_activate(const rclcpp_lifecycle::State
         return CallbackReturn::ERROR;
     }
 
-    try
+    if (!use_pin_)
     {
-        for (const auto& model : franka_robot_model_)
+        try
         {
-            model->assign_loaned_state_interfaces(state_interfaces_);
+            for (const auto& model : franka_robot_model_)
+            {
+                model->assign_loaned_state_interfaces(state_interfaces_);
+            }
         }
-    }
-    catch (const std::exception& e)
-    {
-        LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
-        use_pin_ = true;
+        catch (const std::exception& e)
+        {
+            LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
+            use_pin_ = true;
+        }
     }
 
     is_halted_ = false;

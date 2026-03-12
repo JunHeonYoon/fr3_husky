@@ -373,13 +373,16 @@ controller_interface::InterfaceConfiguration {class_name}::state_interface_confi
         }}
     }}
 
-    for (size_t i = 0; i < num_robots_; ++i)
+    if (!use_pin_)
     {{
-        for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+        for (size_t i = 0; i < num_robots_; ++i)
         {{
-            conf.names.push_back(name);
+            for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+            {{
+                conf.names.push_back(name);
+            }}
+            conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
         }}
-        conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
     }}
 
     for (const auto& joint_name : params_.left_wheel_names)
@@ -509,20 +512,27 @@ CallbackReturn {class_name}::on_configure(const rclcpp_lifecycle::State& /*previ
     }}
     dt_ = 1.0 / static_cast<double>(get_update_rate());
 
-    franka_robot_model_.clear();
-    for (const auto& name : params_.robot_name)
-    {{
-        franka_robot_model_.push_back(
-            std::make_unique<franka_semantic_components::FrankaRobotModel>(
-                name + "_" + arm_id_ + "/robot_model",
-                name + "_" + arm_id_ + "/robot_state"));
-    }}
-
     auto tmp_node = rclcpp::Node::make_shared("_tmp_urdf_client_" + std::string(get_node()->get_name()));
     auto param_client = std::make_shared<rclcpp::SyncParametersClient>(tmp_node, "controller_manager");
     param_client->wait_for_service();
     auto cm_params = param_client->get_parameters({{"robot_description"}});
     std::string urdf_xml = cm_params[0].value_to_string();
+
+    // When using MuJoCo, do not use franka semantic segment
+    use_pin_ = (urdf_xml.find("mujoco_ros_hardware/MujocoHardwareInterface") != std::string::npos);
+    LOGW(get_node(), "Franka model: %s", !use_pin_ ? "available" : "unavailable (pinocchio fallback)");
+
+    franka_robot_model_.clear();
+    if (!use_pin_)
+    {{
+        for (const auto& name : params_.robot_name)
+        {{
+            franka_robot_model_.push_back(
+                std::make_unique<franka_semantic_components::FrankaRobotModel>(
+                    name + "_" + arm_id_ + "/robot_model",
+                    name + "_" + arm_id_ + "/robot_state"));
+        }}
+    }}
 
     pinocchio::urdf::buildModelFromXML(urdf_xml, pin_model_);
     pin_data_ = pinocchio::Data(pin_model_);
@@ -776,17 +786,20 @@ CallbackReturn {class_name}::on_activate(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::ERROR;
     }}
 
-    try
+    if (!use_pin_)
     {{
-        for (const auto& model : franka_robot_model_)
+        try
         {{
-            model->assign_loaned_state_interfaces(state_interfaces_);
+            for (const auto& model : franka_robot_model_)
+            {{
+                model->assign_loaned_state_interfaces(state_interfaces_);
+            }}
         }}
-    }}
-    catch (const std::exception& e)
-    {{
-        LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
-        use_pin_ = true;
+        catch (const std::exception& e)
+        {{
+            LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
+            use_pin_ = true;
+        }}
     }}
 
     is_halted_ = false;

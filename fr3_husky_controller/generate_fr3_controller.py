@@ -88,6 +88,7 @@ def render_hpp(class_name: str) -> str:
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <controller_interface/controller_interface.hpp>
 #include <controller_interface/helpers.hpp>
+#include <controller_manager_msgs/srv/list_hardware_interfaces.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 #include <rclcpp_lifecycle/state.hpp>
@@ -165,6 +166,16 @@ private:
     pinocchio::Model pin_model_;
     pinocchio::Data pin_data_;
     bool use_pin_{{false}};
+
+    // Precomputed pinocchio indices/IDs
+    std::map<std::string, std::array<int, FR3_DOF>> pin_q_idx_;
+    std::map<std::string, std::array<int, FR3_DOF>> pin_v_idx_;
+    std::map<std::string, pinocchio::FrameIndex>    pin_link0_id_;
+    std::map<std::string, pinocchio::FrameIndex>    pin_ee_id_;
+    std::map<std::string, size_t>                   pin_ee_robot_idx_;
+    Eigen::VectorXd q_pin_;
+    Eigen::VectorXd qdot_pin_;
+    Eigen::MatrixXd J_full_;
 
     // ========================================================================
     // ======================= Manipulator State Data =========================
@@ -295,13 +306,16 @@ controller_interface::InterfaceConfiguration {class_name}::state_interface_confi
         }}
     }}
 
-    for (size_t i = 0; i < num_robots_; ++i)
+    if (!use_pin_)
     {{
-        for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+        for (size_t i = 0; i < num_robots_; ++i)
         {{
-            conf.names.push_back(name);
+            for (const auto& name : franka_robot_model_[i]->get_state_interface_names())
+            {{
+                conf.names.push_back(name);
+            }}
+            conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
         }}
-        conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
     }}
 
     return conf;
@@ -400,20 +414,27 @@ CallbackReturn {class_name}::on_configure(const rclcpp_lifecycle::State& /*previ
     }}
     dt_ = 1.0 / static_cast<double>(get_update_rate());
 
-    franka_robot_model_.clear();
-    for (const auto& name : params_.robot_name)
-    {{
-        franka_robot_model_.push_back(
-            std::make_unique<franka_semantic_components::FrankaRobotModel>(
-                name + "_" + arm_id_ + "/robot_model",
-                name + "_" + arm_id_ + "/robot_state"));
-    }}
-
     auto tmp_node = rclcpp::Node::make_shared("_tmp_urdf_client_" + std::string(get_node()->get_name()));
     auto param_client = std::make_shared<rclcpp::SyncParametersClient>(tmp_node, "controller_manager");
     param_client->wait_for_service();
     auto cm_params = param_client->get_parameters({{"robot_description"}});
     std::string urdf_xml = cm_params[0].value_to_string();
+
+    // When using MuJoCo, do not use franka semantic segment
+    use_pin_ = (urdf_xml.find("mujoco_ros_hardware/MujocoHardwareInterface") != std::string::npos);
+    LOGW(get_node(), "Franka model: %s", !use_pin_ ? "available" : "unavailable (pinocchio fallback)");
+
+    franka_robot_model_.clear();
+    if (!use_pin_)
+    {{
+        for (const auto& name : params_.robot_name)
+        {{
+            franka_robot_model_.push_back(
+                std::make_unique<franka_semantic_components::FrankaRobotModel>(
+                    name + "_" + arm_id_ + "/robot_model",
+                    name + "_" + arm_id_ + "/robot_state"));
+        }}
+    }}
 
     pinocchio::urdf::buildModelFromXML(urdf_xml, pin_model_);
     pin_data_ = pinocchio::Data(pin_model_);
@@ -460,6 +481,27 @@ CallbackReturn {class_name}::on_configure(const rclcpp_lifecycle::State& /*previ
         const std::string link8    = name + "_" + arm_id_ + "_link8";
         const bool has_hand = pin_model_.getFrameId(hand_tcp) < static_cast<pinocchio::FrameIndex>(pin_model_.nframes);
         ee_names_.push_back(has_hand ? hand_tcp : link8);
+    }}
+
+    q_pin_    = Eigen::VectorXd::Zero(pin_model_.nq);
+    qdot_pin_ = Eigen::VectorXd::Zero(pin_model_.nv);
+    J_full_   = Eigen::MatrixXd::Zero(6, pin_model_.nv);
+    for (size_t i = 0; i < robot_names_.size(); ++i)
+    {{
+        const std::string& rn = robot_names_[i];
+        for (int j = 0; j < FR3_DOF; ++j)
+        {{
+            const std::string jname = rn + "_" + arm_id_ + "_joint" + std::to_string(j + 1);
+            const pinocchio::JointIndex jid = pin_model_.getJointId(jname);
+            pin_q_idx_[rn][j] = pin_model_.joints[jid].idx_q();
+            pin_v_idx_[rn][j] = pin_model_.joints[jid].idx_v();
+        }}
+        pin_link0_id_[rn] = pin_model_.getFrameId(rn + "_" + arm_id_ + "_link0");
+    }}
+    for (size_t i = 0; i < ee_names_.size(); ++i)
+    {{
+        pin_ee_id_[ee_names_[i]]        = pin_model_.getFrameId(ee_names_[i]);
+        pin_ee_robot_idx_[ee_names_[i]] = i;
     }}
 
     for (const auto& ee_name : ee_names_)
@@ -527,17 +569,20 @@ CallbackReturn {class_name}::on_activate(const rclcpp_lifecycle::State& /*previo
             handle.state[kEffortIndex] = state_by_type[kEffortIndex][i];
     }}
 
-    try
+    if (!use_pin_)
     {{
-        for (const auto& model : franka_robot_model_)
+        try
         {{
-            model->assign_loaned_state_interfaces(state_interfaces_);
+            for (const auto& model : franka_robot_model_)
+            {{
+                model->assign_loaned_state_interfaces(state_interfaces_);
+            }}
         }}
-    }}
-    catch (const std::exception& e)
-    {{
-        LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
-        use_pin_ = true;
+        catch (const std::exception& e)
+        {{
+            LOGW(get_node(), "Franka semantic component state interfaces not available (%s). Falling back to pinocchio.", e.what());
+            use_pin_ = true;
+        }}
     }}
 
     is_halted_ = false;
@@ -729,45 +774,85 @@ void {class_name}::updateRobotData()
 
     if (use_pin_)
     {{
-        pinocchio::forwardKinematics(pin_model_, pin_data_, q_total_, qdot_total_);
-        pinocchio::updateFramePlacements(pin_model_, pin_data_);
-        pinocchio::computeJointJacobians(pin_model_, pin_data_, q_total_);
-        pinocchio::crba(pin_model_, pin_data_, q_total_);
-        pinocchio::computeGeneralizedGravity(pin_model_, pin_data_, q_total_);
-        pinocchio::nonLinearEffects(pin_model_, pin_data_, q_total_, qdot_total_);
+        q_pin_.setZero();
+        qdot_pin_.setZero();
+        for (size_t i = 0; i < num_robots_; ++i)
+        {{
+            const std::string& rn    = robot_names_[i];
+            const auto& q_idx = pin_q_idx_.at(rn);
+            const auto& v_idx = pin_v_idx_.at(rn);
+            for (int j = 0; j < FR3_DOF; ++j)
+            {{
+                q_pin_(q_idx[j])    = q_[rn](j);
+                qdot_pin_(v_idx[j]) = qdot_[rn](j);
+            }}
+        }}
 
-        M_total_ = pin_data_.M;
-        M_total_ = M_total_.selfadjointView<Eigen::Upper>();
-        M_inv_total_ = M_total_.inverse();
-        g_total_ = pin_data_.g;
-        c_total_ = pin_data_.nle - g_total_;
+        pinocchio::forwardKinematics(pin_model_, pin_data_, q_pin_, qdot_pin_);
+        pinocchio::updateFramePlacements(pin_model_, pin_data_);
+        pinocchio::computeJointJacobians(pin_model_, pin_data_, q_pin_);
+        pinocchio::crba(pin_model_, pin_data_, q_pin_);
+        pin_data_.M.triangularView<Eigen::StrictlyLower>() =
+            pin_data_.M.transpose().triangularView<Eigen::StrictlyLower>();
+        pinocchio::computeGeneralizedGravity(pin_model_, pin_data_, q_pin_);
+        pinocchio::nonLinearEffects(pin_model_, pin_data_, q_pin_, qdot_pin_);
 
         for (size_t i = 0; i < num_robots_; ++i)
         {{
             const std::string& robot_name = robot_names_[i];
-            M_[robot_name]     = M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF);
-            M_inv_[robot_name] = M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF);
-            g_[robot_name]     = g_total_.segment(FR3_DOF * i, FR3_DOF);
-            c_[robot_name]     = c_total_.segment(FR3_DOF * i, FR3_DOF);
+            const auto& v_idx = pin_v_idx_.at(robot_name);
+
+            Eigen::Matrix<double, FR3_DOF, FR3_DOF> M_i;
+            Eigen::Matrix<double, FR3_DOF, 1> g_i, c_i;
+            for (int a = 0; a < FR3_DOF; ++a)
+            {{
+                g_i(a) = pin_data_.g(v_idx[a]);
+                c_i(a) = pin_data_.nle(v_idx[a]) - pin_data_.g(v_idx[a]);
+                for (int b = 0; b < FR3_DOF; ++b)
+                    M_i(a, b) = pin_data_.M(v_idx[a], v_idx[b]);
+            }}
+            {{
+                std::lock_guard<std::mutex> lock(robot_data_mutex_);
+                M_[robot_name]     = M_i;
+                M_inv_[robot_name] = M_i.inverse();
+                g_[robot_name]     = g_i;
+                c_[robot_name]     = c_i;
+                M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF)     = M_i;
+                M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_i.inverse();
+                g_total_.segment(FR3_DOF * i, FR3_DOF) = g_i;
+                c_total_.segment(FR3_DOF * i, FR3_DOF) = c_i;
+            }}
         }}
 
         for (const auto& ee_name : ee_names_)
         {{
-            pinocchio::FrameIndex link_index = pin_model_.getFrameId(ee_name);
-            if (link_index == static_cast<pinocchio::FrameIndex>(-1)) continue;
-            x_[ee_name] = pin_data_.oMf[link_index].toHomogeneousMatrix();
-            Eigen::MatrixXd J_total(6, pin_model_.nv);
-            pinocchio::getFrameJacobian(pin_model_, pin_data_, link_index,
-                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J_total);
-            for (size_t i = 0; i < num_robots_; ++i)
+            const size_t       i          = pin_ee_robot_idx_.at(ee_name);
+            const std::string& robot_name = robot_names_[i];
+            const auto&        v_idx      = pin_v_idx_.at(robot_name);
+            const pinocchio::FrameIndex ee_id    = pin_ee_id_.at(ee_name);
+            const pinocchio::FrameIndex link0_id = pin_link0_id_.at(robot_name);
+
+            const pinocchio::SE3& T_w_ee    = pin_data_.oMf[ee_id];
+            const pinocchio::SE3& T_w_link0 = pin_data_.oMf[link0_id];
+            const pinocchio::SE3  T_link0_ee = T_w_link0.actInv(T_w_ee);
+
+            J_full_.setZero();
+            pinocchio::getFrameJacobian(pin_model_, pin_data_, ee_id,
+                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J_full_);
+
+            const Eigen::Matrix3d R = T_w_link0.rotation().transpose();
+            Eigen::Matrix<double, 6, FR3_DOF> J_link0;
+            for (int j = 0; j < FR3_DOF; ++j)
+                J_link0.col(j) = J_full_.col(v_idx[j]);
+            J_link0.topRows(3)    = R * J_link0.topRows(3);
+            J_link0.bottomRows(3) = R * J_link0.bottomRows(3);
+
             {{
-                if (ee_name.find(robot_names_[i]) != std::string::npos)
-                {{
-                    J_[ee_name] = J_total.block(0, i * FR3_DOF, 6, FR3_DOF);
-                    break;
-                }}
+                std::lock_guard<std::mutex> lock(robot_data_mutex_);
+                x_[ee_name].matrix() = T_link0_ee.toHomogeneousMatrix();
+                J_[ee_name]            = J_link0;
+                xdot_[ee_name]       = J_link0 * qdot_[robot_name];
             }}
-            xdot_[ee_name] = J_total * qdot_total_;
         }}
     }}
     else
