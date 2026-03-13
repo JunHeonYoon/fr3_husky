@@ -364,7 +364,7 @@ REGISTER_FR3_HUSKY_ACTION_SERVER(OmegaHaptic, "omegaHaptic")
 ros2 action list -t | grep omega_haptic
 
 # goal 전송 
-ros2 action send_goal /omega_haptic fr3_husky_msgs/action/OmegaHaptic \
+ros2 action send_goal /omegaHaptic fr3_husky_msgs/action/OmegaHaptic \
 "{mode: 1, ee_name: 'left_fr3_hand_tcp', move_orientation: false, hapic_pos_multiplier: 1.0, hapic_ori_multiplier: 1.0, hapic_lin_vel_multiplier: 1.0, hapic_ang_vel_multiplier: 1.0}" \
 --feedback
 */

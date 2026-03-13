@@ -1,12 +1,13 @@
 #include "fr3_husky_controller/fr3_husky_action_controller.hpp"
 
 #include <unordered_set>
+#include <controller_manager_msgs/srv/list_hardware_interfaces.hpp>
 
 namespace fr3_husky_controller
 {
 namespace
 {
-constexpr const char* kJoyTopic = "/joy";
+    constexpr const char* kJoyTopic = "/joy";
 }  // namespace
 
 controller_interface::InterfaceConfiguration FR3HuskyActionController::state_interface_configuration() const
@@ -23,14 +24,17 @@ controller_interface::InterfaceConfiguration FR3HuskyActionController::state_int
         }
     }
 
-    // Franka semantic components (model/state)
-    for (size_t i = 0; i < num_robots_; ++i)
+    // Franka semantic components (model/state) — only when HW provides them
+    if (use_franka_model_)
     {
-        for (const auto & name : franka_robot_model_[i]->get_state_interface_names())
+        for (size_t i = 0; i < num_robots_; ++i)
         {
-            conf.names.push_back(name);
+            for (const auto & name : franka_robot_model_[i]->get_state_interface_names())
+            {
+                conf.names.push_back(name);
+            }
+            conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
         }
-        conf.names.push_back(params_.robot_name[i] + "_" + arm_id_ + "/robot_time");
     }
 
     // Mobile base state interfaces (position/velocity)
@@ -70,38 +74,6 @@ controller_interface::InterfaceConfiguration FR3HuskyActionController::command_i
     }
 
     return conf;
-}
-
-void FR3HuskyActionController::onJoyMessage(const sensor_msgs::msg::Joy::SharedPtr msg)
-{
-    joy_msg_received_.store(true, std::memory_order_release);
-
-    if (!msg)
-    {
-        estop_button_pressed_.store(false, std::memory_order_release);
-        return;
-    }
-
-    const int64_t button_index = params_.estop_button_index;
-    if (button_index < 0 || static_cast<size_t>(button_index) >= msg->buttons.size())
-    {
-        if (!estop_button_index_warned_)
-        {
-            LOGW(get_node(),
-                 "Invalid estop_button_index=%ld for Joy message (buttons size=%zu). e-stop is treated as released.",
-                 static_cast<long>(button_index), msg->buttons.size());
-            estop_button_index_warned_ = true;
-        }
-        estop_button_pressed_.store(false, std::memory_order_release);
-        return;
-    }
-
-    estop_button_pressed_.store(msg->buttons[static_cast<size_t>(button_index)] != 0, std::memory_order_release);
-}
-
-bool FR3HuskyActionController::isJoyConnected() const
-{
-    return joy_subscriber_ && joy_subscriber_->get_publisher_count() > 0;
 }
 
 CallbackReturn FR3HuskyActionController::on_init()
@@ -221,12 +193,38 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     }
     dt_ = 1.0 / static_cast<double>(get_update_rate());
 
-    // Initialize Franka semantic components
+    // for finding whether hand/mobile base exist
+    auto tmp_node = rclcpp::Node::make_shared("_tmp_urdf_client_" + std::string(get_node()->get_name()));
+    auto param_client = std::make_shared<rclcpp::SyncParametersClient>(tmp_node, "controller_manager");
+    param_client->wait_for_service();
+    auto cm_params = param_client->get_parameters({"robot_description"});
+    std::string tmp_urdf_xml = cm_params[0].value_to_string();
+
+    /// When using MuJoCo, do not use franka sementic segment
+    use_franka_model_ = (tmp_urdf_xml.find("mujoco_ros_hardware/MujocoHardwareInterface") == std::string::npos);
+    LOGW(get_node(), "Franka model: %s", use_franka_model_ ? "available" : "unavailable (pinocchio fallback)");
+
+    // Initialize Franka semantic components (only if HW exports robot_model)
     franka_robot_model_.clear();
-    for (const auto & name : params_.robot_name)
+    if (use_franka_model_)
     {
-        franka_robot_model_.push_back(std::make_unique<franka_semantic_components::FrankaRobotModel>(name + "_" + arm_id_ + "/robot_model", 
-                                                                                                     name + "_" + arm_id_ + "/robot_state"));
+        for (const auto & name : params_.robot_name)
+        {
+            franka_robot_model_.push_back(std::make_unique<franka_semantic_components::FrankaRobotModel>(name + "_" + arm_id_ + "/robot_model",
+                                                                                                         name + "_" + arm_id_ + "/robot_state"));
+        }
+    }
+
+    pinocchio::Model pin_model;
+    pinocchio::urdf::buildModelFromXML(tmp_urdf_xml, pin_model);
+    pinocchio::Data pin_data = pinocchio::Data(pin_model);
+
+    bool has_hand = false;
+
+    for (const auto& frame : pin_model.frames)
+    {
+        if (frame.name.find("hand") != std::string::npos) has_hand = true;
+        if (has_hand) break;
     }
 
     // initialize dyros_robot_data & controller
@@ -234,7 +232,7 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     std::string xacro_path = description_pkg + "/robots/";
     std::ostringstream segmentation_args;
     segmentation_args << " with_sc:=true"
-                      << " hand:=" << (params_.hand ? "true" : "false")
+                      << " hand:=" << (has_hand ? "true" : "false")
                       << " as_two_wheels:=true"
                       << " ros2_control:=false"
                       << " use_fake_hardware:=false"
@@ -300,13 +298,13 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
 
     if(!loadDRCGains(robot_controller)) return CallbackReturn::ERROR;
 
-    ee_name_.clear();
+    ee_names_.clear();
     for (const auto & name : params_.robot_name)
     {
         std::string ee_name = name + "_" + arm_id_ + "_";
-        if (params_.hand) ee_name = ee_name + "hand_tcp";
-        else              ee_name = ee_name + "link8";
-        ee_name_.push_back(ee_name);
+        if (has_hand) ee_name = ee_name + "hand_tcp";
+        else          ee_name = ee_name + "link8";
+        ee_names_.push_back(ee_name);
     }
 
     if (!model_updater_)
@@ -317,8 +315,7 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     model_updater_->setNode(get_node());
     model_updater_->setInterfaceFlags(has_position_state_interface_, has_velocity_state_interface_, has_effort_state_interface_,
                                       has_position_command_interface_, has_velocity_command_interface_, has_effort_command_interface_);
-    model_updater_->initialize(num_robots_, manipulator_dof_, dt_, ee_name_);
-    model_updater_->setFrankaModel(&franka_robot_model_);
+    model_updater_->initialize(num_robots_, manipulator_dof_, dt_, params_.robot_name, ee_names_);
     model_updater_->setDRCRobotData(std::move(robot_data));
     model_updater_->setDRCRobotController(std::move(robot_controller));
 
@@ -480,17 +477,20 @@ CallbackReturn FR3HuskyActionController::on_activate(const rclcpp_lifecycle::Sta
     model_updater_->setRobotHandles(std::move(robot_handle));
 
     // Assign Franka semantic component state interfaces
-    try
+    if (use_franka_model_)
     {
-        for (const auto & model : franka_robot_model_)
+        try
         {
-            model->assign_loaned_state_interfaces(state_interfaces_);
+            for (const auto & model : franka_robot_model_)
+            {
+                model->assign_loaned_state_interfaces(state_interfaces_);
+            }
+            model_updater_->setFrankaModel(&franka_robot_model_);
         }
-    }
-    catch (const std::exception & e)
-    {
-        LOGE(get_node(), "Failed to assign Franka state interfaces: %s", e.what());
-        return CallbackReturn::ERROR;
+        catch (const std::exception & e)
+        {
+            LOGW(get_node(), "Franka semantic component state interfaces not available (%s).", e.what());
+        }
     }
 
     const bool joy_connected = isJoyConnected();
@@ -853,6 +853,38 @@ void FR3HuskyActionController::publishFromMobileStateBuffer()
 
         odometry_transform_publisher_->publish(tfm);
     }
+}
+
+void FR3HuskyActionController::onJoyMessage(const sensor_msgs::msg::Joy::SharedPtr msg)
+{
+    joy_msg_received_.store(true, std::memory_order_release);
+
+    if (!msg)
+    {
+        estop_button_pressed_.store(false, std::memory_order_release);
+        return;
+    }
+
+    const int64_t button_index = params_.estop_button_index;
+    if (button_index < 0 || static_cast<size_t>(button_index) >= msg->buttons.size())
+    {
+        if (!estop_button_index_warned_)
+        {
+            LOGW(get_node(),
+                 "Invalid estop_button_index=%ld for Joy message (buttons size=%zu). e-stop is treated as released.",
+                 static_cast<long>(button_index), msg->buttons.size());
+            estop_button_index_warned_ = true;
+        }
+        estop_button_pressed_.store(false, std::memory_order_release);
+        return;
+    }
+
+    estop_button_pressed_.store(msg->buttons[static_cast<size_t>(button_index)] != 0, std::memory_order_release);
+}
+
+bool FR3HuskyActionController::isJoyConnected() const
+{
+    return joy_subscriber_ && joy_subscriber_->get_publisher_count() > 0;
 }
 
 bool FR3HuskyActionController::loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller)

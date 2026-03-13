@@ -54,6 +54,7 @@ def _launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace         = LaunchConfiguration('namespace').perform(context)
+    controller_name   = LaunchConfiguration('controller_name').perform(context)
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -118,7 +119,7 @@ def _launch_setup(context, *args, **kwargs):
     rsp_remappings = [('joint_states', joint_states_topic)] if use_mujoco.lower() == 'true' else []
 
     # Controller / broadcaster names
-    main_controller = 'test_dual_fr3_husky_controller' if is_dual else f'test_{robot_sides[0]}_fr3_husky_controller'
+    main_controller = f'dual_{controller_name}' if is_dual else f'{robot_sides[0]}_{controller_name}'
     franka_broadcaster_names = (
         ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
         if is_dual
@@ -180,18 +181,23 @@ def _launch_setup(context, *args, **kwargs):
             arguments=[main_controller, '--controller-manager-timeout', '60'],
             output='screen',
         ),
-        # husky teleop/mux: relevant for both real hardware and MuJoCo
+        # joy_node without namespace → publishes /joy (required by controller e-stop)
         Node(
-            package='twist_mux',
-            executable='twist_mux',
+            package='joy',
+            executable='joy_node',
+            name='joy_node',
             output='screen',
-            remappings=[('/cmd_vel_out', f'/{main_controller}/cmd_vel_unstamped')],
-            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'twist_mux.yaml'])],
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([FindPackageShare('husky_control'), 'launch', 'teleop_joy.launch.py'])
-            ),
+        # teleop_twist_joy: remaps joy → /joy so it uses the same joy_node above
+        Node(
+            namespace='joy_teleop',
+            package='teleop_twist_joy',
+            executable='teleop_node',
+            name='teleop_twist_joy_node',
+            output='screen',
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
+            remappings=[('joy', '/joy')],
         ),
         # husky_control (robot_localization): real hardware only
         IncludeLaunchDescription(
@@ -244,6 +250,7 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('controller_name',   default_value='test_fr3_husky_controller', description='Base controller name (prefixed with left_/right_/dual_)'),
         DeclareLaunchArgument('robot_side',        default_value='left',  description="Robot side: left, right, or dual"),
         DeclareLaunchArgument('namespace',         default_value='',      description='Namespace for the robot'),
         DeclareLaunchArgument('load_gripper',      default_value='true',  description='Load gripper (true/false)'),

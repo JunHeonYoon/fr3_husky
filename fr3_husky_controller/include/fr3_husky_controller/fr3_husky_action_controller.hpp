@@ -36,6 +36,7 @@ namespace std
 #include <controller_interface/helpers.hpp>
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
+#include <controller_manager_msgs/srv/list_hardware_interfaces.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include "rclcpp/logging.hpp"
@@ -121,14 +122,12 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         // ===================== Franka & Husky robot Data ========================
         // ========================================================================
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>> franka_robot_model_;
-        std::unique_ptr<FR3HuskyModelUpdater> model_updater_;
-
-        bool loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller);
-
+        bool use_franka_model_{false};
+        
         // ========================================================================
         // ============================= Task Space Data ==========================
         // ========================================================================
-        std::vector<std::string> ee_name_;
+        std::vector<std::string> ee_names_;
 
         // ========================================================================
         // =========================== Controller data ============================
@@ -193,6 +192,8 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         // ========================================================================
         // ============================ Action Servers ============================
         // ========================================================================
+        std::unique_ptr<FR3HuskyModelUpdater> model_updater_;
+        bool loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller);
         std::vector<std::shared_ptr<fr3_husky_controller::servers::ActionServerManager>> action_servers_;
         std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> active_server_;
         std::unique_ptr<fr3_husky_controller::servers::IdleControl> idle_control_;

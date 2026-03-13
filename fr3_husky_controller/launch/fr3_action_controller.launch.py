@@ -57,10 +57,6 @@ def _launch_setup(context, *args, **kwargs):
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace         = LaunchConfiguration('namespace').perform(context)
 
-    def _to_bool(v): return v.lower() in ('true', '1', 'yes', 'y')
-    load_gripper_value = _to_bool(load_gripper)
-    load_mobile_value  = _to_bool(load_mobile)
-
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
     allowed = {'left', 'right'}
@@ -96,24 +92,8 @@ def _launch_setup(context, *args, **kwargs):
 
     robot_description = xacro.process_file(urdf_path, mappings=xacro_mappings).toprettyxml(indent='  ')
 
-    #  Controllers YAML (load + modify at runtime for typed bool params) 
-    # mobile_base and hand must be typed bool (not string) for the action controller.
-    # These cannot be set from launch args as strings, so we modify the YAML dict
-    # and write to a tempfile that ros2_control_node loads at startup.
-    controllers_yaml_dict = yaml.safe_load(
-        open(os.path.join(pkg_ctrl, 'config', 'fr3_ros_controllers.yaml'))
-    )
-    controllers_root = controllers_yaml_dict.get('/**', controllers_yaml_dict)
-
-    main_controller = 'dual_fr3_action_controller' if is_dual else f'{robot_sides[0]}_fr3_action_controller'
-    if main_controller not in controllers_root:
-        raise RuntimeError(f"Controller '{main_controller}' not found in fr3_ros_controllers.yaml")
-    controllers_root[main_controller]['ros__parameters']['mobile_base'] = load_mobile_value
-    controllers_root[main_controller]['ros__parameters']['hand'] = load_gripper_value
-
-    temp_fd, controllers_yaml_path = tempfile.mkstemp(prefix='fr3_action_controllers_', suffix='.yaml')
-    with os.fdopen(temp_fd, 'w') as f:
-        yaml.safe_dump(controllers_yaml_dict, f)
+    # Controllers YAML
+    controllers_yaml = os.path.join(pkg_ctrl, 'config', 'fr3_ros_controllers.yaml')
 
     #  Topic names
     joint_states_topic = 'dual_fr3/joint_states' if is_dual else f'{robot_sides[0]}_fr3/joint_states'
@@ -125,7 +105,7 @@ def _launch_setup(context, *args, **kwargs):
         jsp_sources = [joint_states_topic, f'{robot_sides[0]}_franka_gripper/joint_states']
 
     #  controller_manager parameters 
-    cm_params = [controllers_yaml_path, {'robot_description': robot_description}]
+    cm_params = [controllers_yaml, {'robot_description': robot_description}]
     if use_mujoco.lower() == 'true':
         xacro_args = f' hand:={load_gripper} mobile:={load_mobile}'
         if not is_dual:
@@ -138,7 +118,8 @@ def _launch_setup(context, *args, **kwargs):
     #  robot_state_publisher: direct subscription when using MuJoCo 
     rsp_remappings = [('joint_states', joint_states_topic)] if use_mujoco.lower() == 'true' else []
 
-    #  Broadcaster names
+    #  Controller / Broadcaster names
+    main_controller = 'dual_fr3_action_controller' if is_dual else f'{robot_sides[0]}_fr3_action_controller'
     franka_broadcaster_names = (
         ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
         if is_dual

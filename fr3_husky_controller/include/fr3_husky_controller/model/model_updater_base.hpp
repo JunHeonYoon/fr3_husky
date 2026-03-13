@@ -65,6 +65,7 @@ class ModelUpdaterBase
         virtual bool initialize(size_t num_robots,
                                 size_t manipulator_dof,
                                 double dt, 
+                                const std::vector<std::string>& robot_names,
                                 const std::vector<std::string>& ee_names);
         void setFrankaModel(std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>>* franka_robot_model) { franka_robot_model_ = franka_robot_model; }
         void setRobotHandles(RobotHandle&& robot_handle) { robot_handle_ = std::move(robot_handle); }
@@ -85,6 +86,7 @@ class ModelUpdaterBase
         std::vector<std::unique_ptr<franka_semantic_components::FrankaRobotModel>>*getFrankaRobotModel() { return franka_robot_model_; }
 
     public:
+        std::vector<std::string> robot_names_;
         std::vector<std::string> ee_names_;
         size_t num_robots_{0}; // number of FR3 arms
         size_t manipulator_dof_{0};

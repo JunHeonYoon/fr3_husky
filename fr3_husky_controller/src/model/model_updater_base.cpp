@@ -37,11 +37,13 @@ void ModelUpdaterBase::setInterfaceFlags(bool has_position_state_interface,
 bool ModelUpdaterBase::initialize(size_t num_robots,
                                   size_t manipulator_dof,
                                   double dt,
+                                  const std::vector<std::string>& robot_names,
                                   const std::vector<std::string>& ee_names)
 {
     num_robots_ = num_robots;
     manipulator_dof_ = manipulator_dof;
     dt_ = dt;
+    robot_names_ = robot_names;
     ee_names_ = ee_names;
 
     halt_initialized_ = false;

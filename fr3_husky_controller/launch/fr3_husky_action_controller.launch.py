@@ -1,6 +1,5 @@
 import os
 import yaml
-import tempfile
 import xacro
 
 from ament_index_python.packages import get_package_share_directory
@@ -55,12 +54,6 @@ def _launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace         = LaunchConfiguration('namespace').perform(context)
-    joy_dev           = LaunchConfiguration('joy_dev').perform(context)
-    joy_deadzone      = LaunchConfiguration('joy_deadzone').perform(context)
-    joy_autorepeat_rate = LaunchConfiguration('joy_autorepeat_rate').perform(context)
-
-    def _to_bool(v): return v.lower() in ('true', '1', 'yes', 'y')
-    load_gripper_value = _to_bool(load_gripper)
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -75,7 +68,7 @@ def _launch_setup(context, *args, **kwargs):
     pkg_desc = get_package_share_directory('fr3_husky_description')
     pkg_ctrl = get_package_share_directory('fr3_husky_controller')
 
-    # URDF + MJCF paths
+    # URDF + MJCF paths 
     if is_dual:
         urdf_path = os.path.join(pkg_desc, 'robots', 'dual_fr3_husky.urdf.xacro')
         mjcf_path = os.path.join(pkg_desc, 'mjcf', 'dual_fr3_husky.xml.xacro')
@@ -98,24 +91,10 @@ def _launch_setup(context, *args, **kwargs):
 
     robot_description = xacro.process_file(urdf_path, mappings=xacro_mappings).toprettyxml(indent='  ')
 
-    # Controllers YAML (load + modify at runtime for typed bool params)
-    # hand must be a typed bool (not string) for the action controller.
-    # We modify the YAML dict and write to a tempfile for ros2_control_node.
-    controllers_yaml_dict = yaml.safe_load(
-        open(os.path.join(pkg_ctrl, 'config', 'fr3_husky_ros_controllers.yaml'))
-    )
-    controllers_root = controllers_yaml_dict.get('/**', controllers_yaml_dict)
+    # Controllers YAML
+    controllers_yaml = os.path.join(pkg_ctrl, 'config', 'fr3_husky_ros_controllers.yaml')
 
-    main_controller = 'dual_fr3_husky_action_controller' if is_dual else f'{robot_sides[0]}_fr3_husky_action_controller'
-    if main_controller not in controllers_root:
-        raise RuntimeError(f"Controller '{main_controller}' not found in fr3_husky_ros_controllers.yaml")
-    controllers_root[main_controller]['ros__parameters']['hand'] = load_gripper_value
-
-    temp_fd, controllers_yaml_path = tempfile.mkstemp(prefix='fr3_husky_action_controllers_', suffix='.yaml')
-    with os.fdopen(temp_fd, 'w') as f:
-        yaml.safe_dump(controllers_yaml_dict, f)
-
-    # Topic name
+    # Topic names
     joint_states_topic = 'dual_fr3_husky/joint_states' if is_dual else f'{robot_sides[0]}_fr3_husky/joint_states'
     if is_dual:
         jsp_sources = [joint_states_topic,
@@ -124,8 +103,8 @@ def _launch_setup(context, *args, **kwargs):
     else:
         jsp_sources = [joint_states_topic, f'{robot_sides[0]}_franka_gripper/joint_states']
 
-    # controller_manager parameters─
-    cm_params = [controllers_yaml_path, {'robot_description': robot_description}]
+    # controller_manager parameters
+    cm_params = [controllers_yaml, {'robot_description': robot_description}]
     if use_mujoco.lower() == 'true':
         xacro_args = f' hand:={load_gripper}'
         if not is_dual:
@@ -138,17 +117,18 @@ def _launch_setup(context, *args, **kwargs):
     # robot_state_publisher: direct subscription when using MuJoCo
     rsp_remappings = [('joint_states', joint_states_topic)] if use_mujoco.lower() == 'true' else []
 
-    # Broadcaster names
+    # Controller / broadcaster names
+    main_controller = f'dual_fr3_husky_action_controller' if is_dual else f'{robot_sides[0]}_fr3_husky_action_controller'
     franka_broadcaster_names = (
         ['left_franka_robot_state_broadcaster', 'right_franka_robot_state_broadcaster']
         if is_dual
         else [f'{robot_sides[0]}_franka_robot_state_broadcaster']
     )
 
-    # Gripper IP
+    # Gripper IPs
     side_ips = {'left': '172.16.5.5', 'right': '172.16.6.6'}
 
-    # Node lis
+    # Node list
     nodes = [
         Node(
             package='rviz2',
@@ -200,18 +180,38 @@ def _launch_setup(context, *args, **kwargs):
             arguments=[main_controller, '--controller-manager-timeout', '60'],
             output='screen',
         ),
+        # husky teleop/mux: relevant for both real hardware and MuJoCo
+        Node(
+            package='twist_mux',
+            executable='twist_mux',
+            output='screen',
+            remappings=[('/cmd_vel_out', f'/{main_controller}/cmd_vel_unstamped')],
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'twist_mux.yaml'])],
+        ),
+        # joy_node without namespace → publishes /joy (required by controller e-stop)
         Node(
             package='joy',
             executable='joy_node',
             name='joy_node',
-            namespace=namespace,
             output='screen',
-            parameters=[{
-                'dev': joy_dev,
-                'deadzone': float(joy_deadzone),
-                'autorepeat_rate': float(joy_autorepeat_rate),
-            }],
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
+        ),
+        # teleop_twist_joy: remaps joy → /joy so it uses the same joy_node above
+        Node(
+            namespace='joy_teleop',
+            package='teleop_twist_joy',
+            executable='teleop_node',
+            name='teleop_twist_joy_node',
+            output='screen',
+            parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
             remappings=[('joy', '/joy')],
+        ),
+        # husky_control (robot_localization): real hardware only
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution([FindPackageShare('husky_control'), 'launch', 'control.launch.py'])
+            ),
+            condition=UnlessCondition(PythonExpression(["'", LaunchConfiguration('use_mujoco'), "' == 'true'"])),
         ),
     ]
 
@@ -263,8 +263,5 @@ def generate_launch_description():
         DeclareLaunchArgument('use_mujoco',        default_value='false', description='Use MuJoCo hardware interface'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
-        DeclareLaunchArgument('joy_dev',           default_value='/dev/input/js0', description='Joystick device path'),
-        DeclareLaunchArgument('joy_deadzone',      default_value='0.05',  description='Deadzone for joy_node'),
-        DeclareLaunchArgument('joy_autorepeat_rate', default_value='20.0', description='Autorepeat rate for joy_node'),
         OpaqueFunction(function=_launch_setup),
     ])

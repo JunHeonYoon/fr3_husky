@@ -6,48 +6,60 @@ namespace fr3_husky_controller
 bool FR3ModelUpdater::initialize(size_t num_robots,
                                  size_t manipulator_dof,
                                  double dt,
+                                 const std::vector<std::string>& robot_names,
                                  const std::vector<std::string>& ee_names)
 {
-    if (!ModelUpdaterBase::initialize(num_robots, manipulator_dof, dt, ee_names))
+    if (!ModelUpdaterBase::initialize(num_robots, manipulator_dof, dt, robot_names, ee_names))
     {
         return false;
     }
 
     // Allocate manipulator state buffers
-    q_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    qdot_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    qddot_init_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
+    for (const auto& robot_name : robot_names_)
+    {
+        q_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_init_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        torque_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        q_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qdot_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        qddot_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        torque_desired_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        M_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
+        M_inv_[robot_name] = Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero();
+        c_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+        g_[robot_name] = Eigen::Matrix<double, FR3_DOF, 1>::Zero();
+    }
+
     q_total_init_.setZero(manipulator_dof_);
     qdot_total_init_.setZero(manipulator_dof_);
     qddot_total_init_.setZero(manipulator_dof_);
-
-    q_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    qdot_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    qddot_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    torque_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
     q_total_.setZero(manipulator_dof_);
     qdot_total_.setZero(manipulator_dof_);
     qddot_total_.setZero(manipulator_dof_);
     torque_total_.setZero(manipulator_dof_);
-
-    q_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    qdot_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    torque_desired_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
     q_desired_total_.setZero(manipulator_dof_);
     qdot_desired_total_.setZero(manipulator_dof_);
+    qddot_desired_total_.setZero(manipulator_dof_);
     torque_desired_total_.setZero(manipulator_dof_);
-
-    M_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
-    M_inv_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, FR3_DOF>::Zero());
-    c_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
-    g_.assign(num_robots_, Eigen::Matrix<double, FR3_DOF, 1>::Zero());
     M_total_.setZero(manipulator_dof_, manipulator_dof_);
     M_inv_total_.setZero(manipulator_dof_, manipulator_dof_);
     c_total_.setZero(manipulator_dof_);
     g_total_.setZero(manipulator_dof_);
 
-    ee_data_.clear();
-    for (const auto& name : ee_names_) ee_data_[name] = drc::TaskSpaceData::Zero();
+    for (const auto& ee_name : ee_names_)
+    {
+        x_init_[ee_name]     = Eigen::Affine3d::Identity();
+        xdot_init_[ee_name]  = Eigen::Vector6d::Zero();
+        x_[ee_name]          = Eigen::Affine3d::Identity();
+        xdot_[ee_name]       = Eigen::Vector6d::Zero();
+        J_[ee_name]          = Eigen::Matrix<double, 6, FR3_DOF>::Zero();
+        x_desired_[ee_name]  = Eigen::Affine3d::Identity();
+        xdot_desired_[ee_name] = Eigen::Vector6d::Zero();
+    }
 
     return true;
 }
@@ -67,10 +79,11 @@ void FR3ModelUpdater::updateJointStates()
 
     for (size_t r = 0; r < num_robots_; ++r)
     {
-        q_[r]      = q_total_.segment(FR3_DOF * r, FR3_DOF);
-        qdot_[r]   = qdot_total_.segment(FR3_DOF * r, FR3_DOF);
-        qddot_[r]  = qddot_total_.segment(FR3_DOF * r, FR3_DOF);
-        torque_[r] = torque_total_.segment(FR3_DOF * r, FR3_DOF);
+        const std::string& robot_name = robot_names_[r];
+        q_[robot_name]      = q_total_.segment(FR3_DOF * r, FR3_DOF);
+        qdot_[robot_name]   = qdot_total_.segment(FR3_DOF * r, FR3_DOF);
+        qddot_[robot_name]  = qddot_total_.segment(FR3_DOF * r, FR3_DOF);
+        torque_[robot_name] = torque_total_.segment(FR3_DOF * r, FR3_DOF);
     }
 }
 
@@ -81,56 +94,89 @@ void FR3ModelUpdater::updateRobotData()
         return;
     }
 
-    if (!franka_robot_model_)
-    {
-        if (node_) RCLCPP_WARN(node_->get_logger(), "Franka robot model pointer is null; skipping model update.");
-        return;
-    }
-
     if (!robot_data_)
     {
         if (node_) RCLCPP_WARN(node_->get_logger(), "DRC robot data pointer is null; skipping model update.");
         return;
     }
 
-    M_total_.setZero(manipulator_dof_, manipulator_dof_);
-    for (size_t i = 0; i < num_robots_; ++i)
-    {
-        std::array<double, FR3_DOF * FR3_DOF> mass = (*franka_robot_model_)[i]->getMassMatrix();
-        std::array<double, FR3_DOF> coriolis = (*franka_robot_model_)[i]->getCoriolisForceVector();
-        std::array<double, FR3_DOF> gravity = (*franka_robot_model_)[i]->getGravityForceVector();
-
-        {
-            std::lock_guard<std::mutex> lock(robot_data_mutex_);
-            M_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, FR3_DOF, Eigen::RowMajor>>(mass.data());
-            c_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(coriolis.data());
-            g_[i] = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(gravity.data());
-            M_inv_[i] = M_[i].inverse();
-
-            M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_[i];
-            M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_inv_[i];
-            c_total_.segment(FR3_DOF * i, FR3_DOF) = c_[i];
-            g_total_.segment(FR3_DOF * i, FR3_DOF) = g_[i];
-        }
-    }
-
     robot_data_->updateState(q_total_, qdot_total_);
 
-    for (auto& [ee_name, ee_data] : ee_data_)
+    if (franka_robot_model_)
     {
-        ee_data.x = robot_data_->getPose(ee_name);
-        ee_data.xdot = robot_data_->getVelocity(ee_name);
-        ee_data.xddot.setZero();
-    }
+        M_total_.setZero(manipulator_dof_, manipulator_dof_);
+        for (size_t i = 0; i < num_robots_; ++i)
+        {
+            const std::string& robot_name = robot_names_[i];
+            std::array<double, FR3_DOF * FR3_DOF>  mass     = (*franka_robot_model_)[i]->getMassMatrix();
+            std::array<double, FR3_DOF>            coriolis = (*franka_robot_model_)[i]->getCoriolisForceVector();
+            std::array<double, FR3_DOF>            gravity  = (*franka_robot_model_)[i]->getGravityForceVector();
+            {
+                std::lock_guard<std::mutex> lock(robot_data_mutex_);
+                M_[robot_name]     = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, FR3_DOF, Eigen::RowMajor>>(mass.data());
+                g_[robot_name]     = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(gravity.data());
+                c_[robot_name]     = Eigen::Map<const Eigen::Matrix<double, FR3_DOF, 1>>(coriolis.data());
+                M_inv_[robot_name] = M_[robot_name].inverse();
+                M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_[robot_name];
+                M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF) = M_inv_[robot_name];
+                g_total_.segment(FR3_DOF * i, FR3_DOF) = g_[robot_name];
+                c_total_.segment(FR3_DOF * i, FR3_DOF) = c_[robot_name];
+            }
+        }
 
+        for (const auto& ee_name : ee_names_)
+        {
+            for (size_t i = 0; i < num_robots_; ++i)
+            {
+                if (ee_name.find(robot_names_[i]) != std::string::npos)
+                {
+                    std::array<double, 16> pose = (*franka_robot_model_)[i]->getPoseMatrix(franka::Frame::kEndEffector);
+                    std::array<double, 42> jac  = (*franka_robot_model_)[i]->getZeroJacobian(franka::Frame::kEndEffector);
+                    x_[ee_name].matrix() = Eigen::Map<const Eigen::Matrix4d>(pose.data());
+                    J_[ee_name] = Eigen::Map<const Eigen::Matrix<double, 6, FR3_DOF, Eigen::ColMajor>>(jac.data());
+                    xdot_[ee_name] = J_[ee_name] * qdot_[robot_names_[i]];
+                    break;
+                }
+            }
+        }
+    }
+    else
+    {
+        M_total_ = robot_data_->getMassMatrix();;
+        M_inv_total_ = M_total_.inverse();
+        g_total_ = robot_data_->getGravity();
+        c_total_ = robot_data_->getCoriolis();
+
+        for (size_t i = 0; i < num_robots_; ++i)
+        {
+            const std::string& robot_name = robot_names_[i];
+            M_[robot_name]     = M_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF);
+            M_inv_[robot_name] = M_inv_total_.block(FR3_DOF * i, FR3_DOF * i, FR3_DOF, FR3_DOF);
+            g_[robot_name]     = g_total_.segment(FR3_DOF * i, FR3_DOF);
+            c_[robot_name]     = c_total_.segment(FR3_DOF * i, FR3_DOF);
+        }
+
+        for (const auto& ee_name : ee_names_)
+        {
+            if(!robot_data_->hasLinkFrame(ee_name)) continue;
+            x_[ee_name] = robot_data_->getPose(ee_name);
+            const Eigen::MatrixXd J_total = robot_data_->getJacobian(ee_name);
+            for (size_t i = 0; i < num_robots_; ++i)
+            {
+                if (ee_name.find(robot_names_[i]) != std::string::npos)
+                {
+                    J_[ee_name] = J_total.block(0, i * FR3_DOF, 6, FR3_DOF);
+                    break;
+                }
+            }
+            xdot_[ee_name] = robot_data_->getVelocity(ee_name);
+        }
+    }
 }
 
 void FR3ModelUpdater::setInitFromCurrent()
 {
-    if (!is_configured_)
-    {
-        return;
-    }
+    if (!is_configured_) return;
 
     q_init_ = q_;
     qdot_init_ = qdot_;
@@ -138,11 +184,8 @@ void FR3ModelUpdater::setInitFromCurrent()
     q_total_init_ = q_total_;
     qdot_total_init_ = qdot_total_;
     qddot_total_init_ = qddot_total_;
-
-    for (auto& [ee_name, ee_data] : ee_data_)
-    {
-        ee_data.setInit();
-    }
+    x_init_    = x_;
+    xdot_init_ = xdot_;
 }
 
 void FR3ModelUpdater::writeCommand(const Eigen::VectorXd& command)
