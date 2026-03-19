@@ -134,14 +134,14 @@ ros2 action list | grep gravity
 
 # FR3 action controller example
 ros2 action send_goal \
-  /left_fr3_action_controller/fr3_gravity_compensation \
+  /fr3_action_controller/fr3_gravity_compensation \
   fr3_husky_msgs/action/GravityCompensation \
   "{use_qp: true}" \
   --feedback
 
 # FR3+Husky action controller example
 ros2 action send_goal \
-  /left_fr3_husky_action_controller/fr3_husky_gravity_compensation \
+  /fr3_husky_action_controller/fr3_husky_gravity_compensation \
   fr3_husky_msgs/action/GravityCompensation \
   "{use_qp: true}" \
   --feedback
