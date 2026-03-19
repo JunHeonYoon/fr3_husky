@@ -36,14 +36,7 @@ cd ~/ros2_ws/src
 git clone https://github.com/JunHeonYoon/fr3_husky.git
 ```
 
-2. Install dependencies with `rosdep`:
-```bash
-cd ~/ros2_ws
-rosdep update
-rosdep install --from-paths src --ignore-src -r -y
-```
-
-3. Build:
+2. Build:
 ```bash
 cd ~/ros2_ws
 colcon build --symlink-install --packages-up-to \
@@ -53,7 +46,7 @@ colcon build --symlink-install --packages-up-to \
   fr3_husky_moveit_config
 ```
 
-4. Source workspace:
+3. Source workspace:
 ```bash
 source ~/ros2_ws/install/setup.bash
 ```
@@ -93,36 +86,30 @@ ros2 launch fr3_husky_description visualize_fr3_husky.launch.py \
 
 
 ### `fr3_husky_controller`
-- Provides `ros2_control` controller plugins for:
-  - FR3 test controller
-  - Husky test controller
-  - FR3+Husky test controller
-  - FR3 action controller
-  - FR3+Husky action controller
-- Includes launch files for running controller manager, RViz, gripper launch, and teleop integration.
-- Exported controller plugin types:
+- Provides launch files and controller plugin infrastructure for running user-defined controllers on FR3, Husky, and FR3+Husky setups.
+- Built-in plugins (temporary examples for verification):
   - `fr3_husky_controller/TestFR3Controller`
   - `fr3_husky_controller/TestHuskyController`
   - `fr3_husky_controller/TestFR3HuskyController`
   - `fr3_husky_controller/FR3ActionController`
   - `fr3_husky_controller/FR3HuskyActionController`
+- **User-defined controllers** are added via the code-generation scripts (see below) and run by passing `controller_name:=<your_controller>` to the launch file.
 
 - Launch files (add `use_mujoco:=true` for simulation — see [MuJoCo Simulation](#mujoco-simulation)):
 ```bash
-# FR3 test controller (non-action)
+# FR3 controller — specify your controller with controller_name
 ros2 launch fr3_husky_controller fr3_controller.launch.py \
-  robot_side:=left load_gripper:=true load_mobile:=false use_fake_hardware:=true
+  robot_side:=left load_gripper:=true load_mobile:=false use_fake_hardware:=true \
+  controller_name:=<your_fr3_controller>
 
 # FR3 action controller
 ros2 launch fr3_husky_controller fr3_action_controller.launch.py \
   robot_side:=left load_gripper:=true load_mobile:=false use_fake_hardware:=true
 
-# Husky-only test controller
-ros2 launch fr3_husky_controller husky_controller.launch.py
-
-# FR3 + Husky test controller (with teleop pipeline)
+# FR3 + Husky controller — specify your wholebody controller with controller_name
 ros2 launch fr3_husky_controller fr3_husky_controller.launch.py \
-  robot_side:=left load_gripper:=true use_fake_hardware:=true
+  robot_side:=left load_gripper:=true use_fake_hardware:=true \
+  controller_name:=<your_fr3_husky_controller>
 
 # FR3 + Husky action controller (includes joy_node)
 ros2 launch fr3_husky_controller fr3_husky_action_controller.launch.py \
@@ -132,8 +119,9 @@ ros2 launch fr3_husky_controller fr3_husky_action_controller.launch.py \
 - Main launch arguments:
   - `robot_side`: `left`, `right`, `dual`
   - `namespace`: ROS namespace
+  - `controller_name`: controller to spawn(e.g. `test_fr3_controller`); use this to run your generated controller
   - `load_gripper`: `true|false`
-  - `load_mobile`: `true|false` (FR3-only launch files)
+  - `load_mobile`: use Husky as dummy base (not control the Husky) `true|false` (FR3-only launch files)
   - `use_fake_hardware`: `true|false`
   - `fake_sensor_commands`: `true|false`
   - `use_mujoco`: `true|false`
@@ -159,7 +147,16 @@ ros2 action send_goal \
   --feedback
 ```
 
-- Action server code generation — see [ACTION_SERVER_CODEGEN.md](ACTION_SERVER_CODEGEN.md):
+- Controller code generation — see [GENERATE_CONTROLLER.md](fr3_husky_controller/GENERATE_CONTROLLER.md):
+```bash
+# FR3-only controller (patches config/fr3_ros_controllers.yaml)
+python3 fr3_husky_controller/generate_fr3_controller.py MyNewController --control_mode effort
+
+# FR3+Husky wholebody controller (patches config/fr3_husky_ros_controllers.yaml)
+python3 fr3_husky_controller/generate_fr3_husky_controller.py MyWholebody --control_mode effort
+```
+
+- Action server code generation — see [ACTION_SERVER_CODEGEN.md](fr3_husky_controller/ACTION_SERVER_CODEGEN.md):
 ```bash
 python3 fr3_husky_controller/generate_fr3_action_server.py GravityCompensation
 python3 fr3_husky_controller/generate_fr3_husky_action_server.py GravityCompensation
@@ -206,3 +203,9 @@ ros2 launch fr3_husky_controller fr3_husky_controller.launch.py \
   - left arm: `172.16.5.5`
   - right arm: `172.16.6.6`
 - For real hardware, verify network setup and safety conditions before launching controllers.
+
+## TODO
+- In mujoco environment, we use pinocchio to get robot states (e.g. jacobian, mass matrix...). Are these parameters validate data?
+- For real robot, franka hand can be controlled by ROS2 action [example](https://github.com/JunHeonYoon/franka_ros2/blob/humble/franka_example_controllers/src/gripper_example_controller.cpp). How to mimic that framework to mujoco environment?
+- Add JointTrajectoryController in fr3_husky_controller, and insert in fr3_husky_moveit_config.
+- In mujoco_ros_hardware, if camera is added in MJCF, publish by ROS2 image topic. 
