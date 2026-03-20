@@ -166,25 +166,46 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(
         ee_data[control_ee_name_].setInit();
     }
 
-    Eigen::Affine3d target_pose_diff;
+     Eigen::Affine3d target_pose_diff;
     Eigen::Vector6d target_vel;
     target_pose_diff.setIdentity();
     target_vel.setZero();
     if(is_mouse_mode_on_)
     {
-        const Eigen::Affine3d haptic_pose_diff = haptic_pose_init_.inverse() * haptic_pose_local;
+        // haptic diff in haptic_init frame: D = H_init^{-1} * H_cur
+        Eigen::Affine3d haptic_pose_diff = haptic_pose_init_.inverse() * haptic_pose_local;
 
-        target_pose_diff.translation() = hapic_pos_multiplier_ * haptic_pose_diff.translation();
-        if(move_ori_) target_pose_diff.linear() = haptic_pose_diff.linear(); // TODO: use hapic_ori_multiplier
+        const Eigen::Matrix3d& R_h2r     = haptic_base2robot_base_;
+        const Eigen::Matrix3d& R_init    = haptic_pose_init_.linear();
+        const Eigen::Matrix3d& R_ee_init = ee_data[control_ee_name_].x_init.linear();
 
-        target_pose_diff.linear() = haptic_base2robot_base_ * target_pose_diff.linear() * haptic_base2robot_base_.transpose();
+        // Position: haptic_init frame → haptic_base → robot_base → EE_init body frame
+        // delta_pos (haptic_init) = D.translation()
+        // delta_pos (haptic_base) = R_init * D.translation()
+        // delta_pos (robot_base)  = R_h2r * R_init * D.translation()
+        // delta_pos (EE body)     = R_ee_init^T * delta_pos (robot_base)
+        const Eigen::Vector3d delta_pos = hapic_pos_multiplier_
+            * R_ee_init.transpose() * R_h2r * R_init * haptic_pose_diff.translation();
 
-        target_vel.head(3) = hapic_lin_vel_multiplier_ * haptic_vel_local.head(3);
-        if(move_ori_) target_vel.tail(3) = hapic_ang_vel_multiplier_ * haptic_vel_local.tail(3);
+        // Orientation: scale rotation angle by hapic_ori_multiplier_ (via AngleAxis),
+        //              then convert haptic_init frame → robot_base → EE_init body frame
+        Eigen::Matrix3d rot_diff_ee_body = Eigen::Matrix3d::Identity();
+        if(move_ori_)
+        {
+            const Eigen::AngleAxisd aa(haptic_pose_diff.linear());
+            const Eigen::Matrix3d R_diff_scaled = (std::abs(aa.angle()) > 1e-10)
+                ? Eigen::AngleAxisd(hapic_ori_multiplier_ * aa.angle(), aa.axis()).toRotationMatrix()
+                : Eigen::Matrix3d::Identity();
+            // R_diff (haptic_init) → R_h2r * R_diff * R_h2r^T (robot_base) → R_ee^T * (...) * R_ee (EE body)
+            rot_diff_ee_body = R_ee_init.transpose() * R_h2r * R_diff_scaled * R_h2r.transpose() * R_ee_init;
+        }
+
+        target_pose_diff.translation() = delta_pos;
+        target_pose_diff.linear()      = rot_diff_ee_body;
     }
     
-    ee_data[control_ee_name_].x_desired = target_pose_diff * ee_data[control_ee_name_].x_init;
-    ee_data[control_ee_name_].xdot_desired = target_vel;
+    ee_data[control_ee_name_].x_desired = ee_data[control_ee_name_].x_init * target_pose_diff;
+    ee_data[control_ee_name_].xdot_desired  = target_vel;
 
     Eigen::VectorXd torque_desired;
     torque_desired.setZero(fr3_husky_model_updater_.manipulator_dof_);
