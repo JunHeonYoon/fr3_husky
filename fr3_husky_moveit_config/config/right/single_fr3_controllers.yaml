@@ -1,9 +1,9 @@
 controller_names:
-  - single_fr3_arm_controller
+  - fr3_joint_trajectory_controller
   - right_franka_gripper
 
-single_fr3_arm_controller:
-  action_ns: follow_joint_trajectory
+fr3_joint_trajectory_controller:
+  action_ns: ""
   type: FollowJointTrajectory
   default: true
   joints:

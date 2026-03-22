@@ -56,6 +56,7 @@ def _launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace         = LaunchConfiguration('namespace').perform(context)
+    launch_rviz       = LaunchConfiguration('launch_rviz').perform(context)
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -130,15 +131,19 @@ def _launch_setup(context, *args, **kwargs):
     side_ips = {'left': '172.16.5.5', 'right': '172.16.6.6'}
 
     #  Node list
-    nodes = [
-        Node(
+    nodes = []
+
+    if launch_rviz.lower() == 'true':
+        nodes.append(Node(
             package='rviz2',
             executable='rviz2',
             name='rviz2',
             output='log',
             arguments=['-d', os.path.join(pkg_ctrl, 'rviz', 'fr3.rviz')],
             parameters=[{'robot_description': robot_description}],
-        ),
+        ))
+
+    nodes += [
         Node(
             package='robot_state_publisher',
             executable='robot_state_publisher',
@@ -232,5 +237,6 @@ def generate_launch_description():
         DeclareLaunchArgument('use_mujoco',        default_value='false', description='Use MuJoCo hardware interface'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
+        DeclareLaunchArgument('launch_rviz',       default_value='true',  description='Launch RViz'),
         OpaqueFunction(function=_launch_setup),
     ])
