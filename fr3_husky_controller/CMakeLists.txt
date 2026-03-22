@@ -83,6 +83,7 @@ add_library(${PROJECT_NAME} SHARED
     
     src/test_fr3_controller.cpp
     src/test_fr3_husky_controller.cpp
+    src/servers/fr3/joint_trajectory_controller_action_server.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
