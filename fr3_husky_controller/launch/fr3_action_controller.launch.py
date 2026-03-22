@@ -13,6 +13,15 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
+def _load_yaml(package_name, rel_path):
+    path = os.path.join(get_package_share_directory(package_name), rel_path)
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f)
+    except EnvironmentError:
+        return {}
+
+
 def _parse_robot_side(raw_value):
     if raw_value is None:
         return []
@@ -50,13 +59,14 @@ def _launch_setup(context, *args, **kwargs):
     robot_sides = _normalize_robot_sides(
         _parse_robot_side(LaunchConfiguration('robot_side').perform(context))
     )
-    use_mujoco        = LaunchConfiguration('use_mujoco').perform(context)
-    load_gripper      = LaunchConfiguration('load_gripper').perform(context)
-    load_mobile       = LaunchConfiguration('load_mobile').perform(context)
-    use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
+    use_mujoco           = LaunchConfiguration('use_mujoco').perform(context)
+    load_gripper         = LaunchConfiguration('load_gripper').perform(context)
+    load_mobile          = LaunchConfiguration('load_mobile').perform(context)
+    use_fake_hardware    = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
-    namespace         = LaunchConfiguration('namespace').perform(context)
-    launch_rviz       = LaunchConfiguration('launch_rviz').perform(context)
+    namespace            = LaunchConfiguration('namespace').perform(context)
+    launch_rviz          = LaunchConfiguration('launch_rviz').perform(context)
+    launch_move_group    = LaunchConfiguration('launch_move_group').perform(context)
 
     if not robot_sides:
         raise RuntimeError("robot_side must be 'left', 'right', or 'dual'.")
@@ -225,6 +235,85 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
+    # ---- Optional move_group (required by fr3_move_to_joint action server) ----
+    if launch_move_group.lower() == 'true':
+        pkg_desc    = get_package_share_directory('fr3_husky_description')
+        pkg_moveit  = get_package_share_directory('fr3_husky_moveit_config')
+
+        if is_dual:
+            urdf_mg_path = os.path.join(pkg_desc, 'robots', 'dual_fr3.urdf.xacro')
+            srdf_path    = os.path.join(pkg_desc, 'robots', 'dual_fr3.srdf.xacro')
+            urdf_mg_map  = {'ros2_control': 'false', 'with_sc': 'false', 'fix_finger': 'false',
+                            'hand': load_gripper, 'mobile': load_mobile}
+            srdf_map     = {'hand': load_gripper, 'mobile': load_mobile}
+            cfg_sub      = 'dual'
+            ctrl_yaml    = os.path.join('config', 'dual', 'dual_fr3_controllers.yaml')
+            jsp_src      = ['dual_fr3/joint_states']
+        else:
+            robot_side   = robot_sides[0]
+            urdf_mg_path = os.path.join(pkg_desc, 'robots', 'single_fr3.urdf.xacro')
+            srdf_path    = os.path.join(pkg_desc, 'robots', 'single_fr3.srdf.xacro')
+            urdf_mg_map  = {'ros2_control': 'false', 'with_sc': 'false', 'fix_finger': 'false',
+                            'side': robot_side, 'hand': load_gripper, 'mobile': load_mobile}
+            srdf_map     = {'side': robot_side, 'hand': load_gripper, 'mobile': load_mobile}
+            cfg_sub      = robot_side
+            ctrl_yaml    = os.path.join('config', robot_side, 'single_fr3_controllers.yaml')
+            jsp_src      = [f'{robot_side}_fr3/joint_states']
+
+        mg_robot_desc = xacro.process_file(urdf_mg_path, mappings=urdf_mg_map).toprettyxml(indent='  ')
+        mg_srdf       = xacro.process_file(srdf_path, mappings=srdf_map).toprettyxml(indent='  ')
+        kinematics    = _load_yaml('fr3_husky_moveit_config', os.path.join('config', cfg_sub, 'kinematics.yaml'))
+        ompl_yaml     = _load_yaml('fr3_husky_moveit_config', os.path.join('config', 'ompl_planning.yaml'))
+        ctrl_mgr_yaml = _load_yaml('fr3_husky_moveit_config', ctrl_yaml)
+
+        ompl_cfg = {
+            'move_group': {
+                'planning_plugin': 'ompl_interface/OMPLPlanner',
+                'request_adapters':
+                    'default_planner_request_adapters/AddTimeOptimalParameterization '
+                    'default_planner_request_adapters/ResolveConstraintFrames '
+                    'default_planner_request_adapters/FixWorkspaceBounds '
+                    'default_planner_request_adapters/FixStartStateBounds '
+                    'default_planner_request_adapters/FixStartStateCollision '
+                    'default_planner_request_adapters/FixStartStatePathConstraints',
+                'start_state_max_bounds_error': 0.1,
+            }
+        }
+        ompl_cfg['move_group'].update(ompl_yaml)
+
+        nodes.append(Node(
+            package='moveit_ros_move_group',
+            executable='move_group',
+            namespace=namespace,
+            output='screen',
+            parameters=[
+                {'robot_description': mg_robot_desc},
+                {'robot_description_semantic': mg_srdf},
+                kinematics,
+                ompl_cfg,
+                {'moveit_manage_controllers': False,
+                 'trajectory_execution.allowed_execution_duration_scaling': 1.2,
+                 'trajectory_execution.allowed_goal_duration_margin': 0.5,
+                 'trajectory_execution.allowed_start_tolerance': 0.01},
+                {'moveit_simple_controller_manager': ctrl_mgr_yaml,
+                 'moveit_controller_manager':
+                     'moveit_simple_controller_manager/MoveItSimpleControllerManager'},
+                {'publish_planning_scene': True, 'publish_geometry_updates': True,
+                 'publish_state_updates': True, 'publish_transforms_updates': True},
+            ],
+        ))
+
+        # MuJoCo: bridge {side}_fr3/joint_states → joint_states for move_group's scene monitor
+        if use_mujoco.lower() == 'true':
+            nodes.append(Node(
+                package='joint_state_publisher',
+                executable='joint_state_publisher',
+                name='joint_state_publisher_moveit',
+                namespace=namespace,
+                parameters=[{'source_list': jsp_src, 'rate': 30}],
+                output='screen',
+            ))
+
     return nodes
 
 
@@ -237,6 +326,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_mujoco',        default_value='false', description='Use MuJoCo hardware interface'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
-        DeclareLaunchArgument('launch_rviz',       default_value='true',  description='Launch RViz'),
+        DeclareLaunchArgument('launch_rviz',         default_value='true',  description='Launch RViz'),
+        DeclareLaunchArgument('launch_move_group',   default_value='false', description='Launch move_group (needed for fr3_move_to_joint)'),
         OpaqueFunction(function=_launch_setup),
     ])
