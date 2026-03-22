@@ -145,3 +145,8 @@ GravityCompensation::ResultPtr GravityCompensation::makeResult(StopReason reason
 REGISTER_FR3_HUSKY_ACTION_SERVER(GravityCompensation, "fr3_husky_gravity_compensation")
 
 }  // namespace fr3_husky_controller::servers::fr3_husky
+/*
+# send goal
+ros2 action send_goal /fr3_husky_gravity_compensation fr3_husky_msgs/action/GravityCompensation \
+ "{use_qp: true}"
+*/
