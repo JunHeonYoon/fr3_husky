@@ -38,12 +38,17 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     tf2_msgs
     control_msgs
     controller_manager_msgs
+    action_msgs
+    moveit_ros_planning_interface
+    srdfdom
 )
+
 
 find_package(ament_cmake REQUIRED)
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
     find_package(${Dependency} REQUIRED)
 endforeach()
+
 
 
 generate_parameter_library(fr3_controller_parameters
@@ -83,6 +88,10 @@ add_library(${PROJECT_NAME} SHARED
     
     src/test_fr3_controller.cpp
     src/test_fr3_husky_controller.cpp
+    src/servers/fr3/joint_trajectory_controller_action_server.cpp
+    src/servers/fr3/move_to_joint_action_server.cpp
+    src/servers/fr3_husky/joint_trajectory_controller_action_server.cpp
+    src/servers/fr3_husky/move_to_joint_action_server.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -131,6 +140,9 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     tf2
     tf2_msgs
     controller_manager_msgs
+    action_msgs
+    moveit_ros_planning_interface
+    srdfdom
 )
 
 install(
@@ -153,6 +165,7 @@ install(TARGETS ${PROJECT_NAME}
 install(DIRECTORY config launch rviz
   DESTINATION share/${PROJECT_NAME}
 )
+
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})

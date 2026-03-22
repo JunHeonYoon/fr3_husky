@@ -32,6 +32,10 @@
   <depend>tf2_msgs</depend>
   <depend>nav_msgs</depend>
 
+  <!-- MoveIt2 planning interface (used by move_to_joint_server) -->
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>action_msgs</depend>
+
   <exec_depend>fr3_husky_description</exec_depend>
   <exec_depend>joy</exec_depend>
   <exec_depend>xacro</exec_depend>

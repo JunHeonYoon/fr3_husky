@@ -346,6 +346,10 @@ private:
             active_ = true;
         }
 
+        // Transition from ACCEPTED → EXECUTING so that succeed()/abort()/canceled()
+        // are valid state transitions when the goal finishes.
+        goal_handle->execute();
+
         requestActivate();
     }
 

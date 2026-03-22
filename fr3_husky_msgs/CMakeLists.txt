@@ -9,6 +9,7 @@ find_package(builtin_interfaces REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
     "action/GravityCompensation.action"
     "action/OmegaHaptic.action"
+    "action/MoveToJoint.action"
 )
 
 
