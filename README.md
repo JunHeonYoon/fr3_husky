@@ -134,14 +134,14 @@ ros2 action list | grep gravity
 
 # FR3 action controller example
 ros2 action send_goal \
-  /left_fr3_action_controller/fr3_gravity_compensation \
+  /fr3_action_controller/fr3_gravity_compensation \
   fr3_husky_msgs/action/GravityCompensation \
   "{use_qp: true}" \
   --feedback
 
 # FR3+Husky action controller example
 ros2 action send_goal \
-  /left_fr3_husky_action_controller/fr3_husky_gravity_compensation \
+  /fr3_husky_action_controller/fr3_husky_gravity_compensation \
   fr3_husky_msgs/action/GravityCompensation \
   "{use_qp: true}" \
   --feedback
@@ -207,5 +207,3 @@ ros2 launch fr3_husky_controller fr3_husky_controller.launch.py \
 ## TODO
 - In mujoco environment, we use pinocchio to get robot states (e.g. jacobian, mass matrix...). Are these parameters validate data?
 - For real robot, franka hand can be controlled by ROS2 action [example](https://github.com/JunHeonYoon/franka_ros2/blob/humble/franka_example_controllers/src/gripper_example_controller.cpp). How to mimic that framework to mujoco environment?
-- Add JointTrajectoryController in fr3_husky_controller, and insert in fr3_husky_moveit_config.
-- In mujoco_ros_hardware, if camera is added in MJCF, publish by ROS2 image topic. 
