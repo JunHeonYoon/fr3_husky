@@ -74,12 +74,12 @@ private:
 
     // action goal data
     int control_mode_; // 0: CLIK, 1: OSF, 2:QPIK, 3:QPID
-    std::string control_ee_name_; // EE name for tracking hapic twist 
+    std::string control_ee_name_; // EE name for tracking haptic twist 
     bool move_ori_;
-    double hapic_pos_multiplier_;
-    double hapic_ori_multiplier_;
-    double hapic_lin_vel_multiplier_;
-    double hapic_ang_vel_multiplier_;
+    double haptic_pos_multiplier_;
+    double haptic_ori_multiplier_;
+    double haptic_lin_vel_multiplier_;
+    double haptic_ang_vel_multiplier_;
 
     std::mutex haptic_pose_mutex_;
     std::mutex haptic_ori_encoder_mutex_;
