@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
     "action/GravityCompensation.action"
     "action/OmegaHaptic.action"
     "action/MoveToJoint.action"
+    "action/ViveTracker.action"
 )
 
 
