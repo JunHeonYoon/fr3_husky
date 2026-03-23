@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -53,9 +54,12 @@ private:
     void          onStop(StopReason reason) override;
     ResultPtr     makeResult(StopReason reason) override;
 
-    static std::string inferGroup(const std::vector<std::string>& joint_names);
     void writeHoldCommands();
     void runPlanning();
+
+    // ---- Planning group (derived from robot_names at construction) -----------
+    std::string planning_group_;
+    std::set<std::string> valid_joint_prefixes_;
 
     FR3HuskyModelUpdater& fr3_husky_model_updater_;
 

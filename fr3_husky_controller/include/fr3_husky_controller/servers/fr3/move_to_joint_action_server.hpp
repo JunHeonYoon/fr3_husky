@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -68,10 +69,6 @@ private:
     ResultPtr     makeResult(StopReason reason) override;
 
     // ---- Helpers -------------------------------------------------------------
-    /** Derive MoveIt planning group from joint names.
-     *  e.g. "left_fr3_joint1" → "left_fr3_arm" */
-    static std::string inferGroup(const std::vector<std::string>& joint_names);
-
     /** Write PD hold commands at q_hold_ (runs every compute() cycle
      *  while planning is in progress). */
     void writeHoldCommands();
@@ -79,6 +76,12 @@ private:
     /** Background thread: plan via MoveGroupInterface, then send the
      *  resulting trajectory to fr3_joint_trajectory_controller. */
     void runPlanning();
+
+    // ---- Planning group (derived from robot_names at construction) -----------
+    /** MoveIt planning group name, e.g. "left_fr3_arm" / "dual_fr3_arm". */
+    std::string planning_group_;
+    /** Valid joint-name prefixes for this group, e.g. {"left_fr3_", "right_fr3_"}. */
+    std::set<std::string> valid_joint_prefixes_;
 
     // ---- FR3 model -----------------------------------------------------------
     FR3ModelUpdater& fr3_model_updater_;

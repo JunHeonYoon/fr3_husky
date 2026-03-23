@@ -78,7 +78,28 @@ MoveToJoint::MoveToJoint(const std::string& name, const NodePtr& node,
             jtc_busy_.store(busy, std::memory_order_relaxed);
         });
 
-    RCLCPP_INFO(node_->get_logger(), "[%s] MoveToJoint created", name_.c_str());
+    // --- Derive planning group and valid joint prefixes from robot_names ---
+    const auto& rnames = model_updater.robot_names_;
+    const auto& arm_id = model_updater.arm_id_;
+
+    if (rnames.size() >= 2)
+    {
+        planning_group_ = "dual_fr3_arm";
+        for (const auto& rn : rnames)
+            valid_joint_prefixes_.insert(rn + "_" + arm_id + "_");
+    }
+    else if (rnames.size() == 1)
+    {
+        planning_group_ = rnames[0] + "_" + arm_id + "_arm";
+        valid_joint_prefixes_.insert(rnames[0] + "_" + arm_id + "_");
+    }
+    else
+    {
+        planning_group_ = arm_id + "_arm";
+    }
+
+    RCLCPP_INFO(node_->get_logger(), "[%s] MoveToJoint created — group=%s", name_.c_str(),
+                planning_group_.c_str());
 }
 
 MoveToJoint::~MoveToJoint()
@@ -97,21 +118,6 @@ MoveToJoint::~MoveToJoint()
 // ============================================================
 // Helpers
 // ============================================================
-
-std::string MoveToJoint::inferGroup(const std::vector<std::string>& joint_names)
-{
-    // Strip "_joint{N}" suffix: "left_fr3_joint1" → "left_fr3_arm"
-    if (!joint_names.empty())
-    {
-        const std::string& n = joint_names[0];
-        const auto pos = n.rfind("_joint");
-        if (pos != std::string::npos)
-        {
-            return n.substr(0, pos) + "_arm";
-        }
-    }
-    return "fr3_arm";
-}
 
 void MoveToJoint::writeHoldCommands()
 {
@@ -150,7 +156,7 @@ void MoveToJoint::writeHoldCommands()
 
 void MoveToJoint::runPlanning()
 {
-    const std::string group = inferGroup(goal_joint_names_);
+    const std::string& group = planning_group_;
     RCLCPP_INFO(node_->get_logger(), "[%s] planning group: %s", name_.c_str(), group.c_str());
 
     // ---- Phase 1: MoveIt2 planning ----------------------------------------
@@ -229,10 +235,31 @@ void MoveToJoint::runPlanning()
             mgi.setMaxVelocityScalingFactor(goal_vel_scale_);
             mgi.setMaxAccelerationScalingFactor(goal_acc_scale_);
 
+            // Build target: fill ALL group joints from hardware q_total_,
+            // then override with the goal's specified joints.
+            // Using q_total_ directly avoids depending on move_group's /joint_states
+            // subscription (which can fail in MuJoCo / fake-hardware mode).
             std::map<std::string, double> target;
-            for (size_t i = 0; i < goal_joint_names_.size(); ++i)
             {
-                target[goal_joint_names_[i]] = goal_target_positions_[i];
+                const auto& rnames = model_updater_.robot_names_;
+                const auto& arm_id = model_updater_.arm_id_;
+                const Eigen::VectorXd& q_hw = fr3_model_updater_.q_total_;
+
+                // q_total_ layout: [rnames[0]_joint1..7, rnames[1]_joint1..7, ...]
+                size_t q_idx = 0;
+                for (const auto& rn : rnames)
+                {
+                    for (int j = 1; j <= FR3_DOF; ++j, ++q_idx)
+                    {
+                        const std::string jname = rn + "_" + arm_id + "_joint" + std::to_string(j);
+                        target[jname] = (q_idx < static_cast<size_t>(q_hw.size()))
+                                        ? q_hw[q_idx] : 0.0;
+                    }
+                }
+
+                // Override with goal joints
+                for (size_t i = 0; i < goal_joint_names_.size(); ++i)
+                    target[goal_joint_names_[i]] = goal_target_positions_[i];
             }
 
             if (!mgi.setJointValueTarget(target))
@@ -364,6 +391,29 @@ bool MoveToJoint::acceptGoal(const ActionT::Goal& goal)
                     name_.c_str(),
                     goal.joint_names.size(), goal.target_positions.size());
         return false;
+    }
+
+    // Validate that every joint name belongs to the planning group.
+    if (!valid_joint_prefixes_.empty())
+    {
+        for (const auto& jname : goal.joint_names)
+        {
+            bool ok = false;
+            for (const auto& prefix : valid_joint_prefixes_)
+            {
+                if (jname.rfind(prefix, 0) == 0) { ok = true; break; }
+            }
+            if (!ok)
+            {
+                std::string valid;
+                for (const auto& p : valid_joint_prefixes_) valid += p + "* ";
+                RCLCPP_WARN(node_->get_logger(),
+                            "[%s] Reject: joint '%s' not in group '%s' (valid: %s)",
+                            name_.c_str(), jname.c_str(), planning_group_.c_str(),
+                            valid.c_str());
+                return false;
+            }
+        }
     }
 
     // Reject if fr3_joint_trajectory_controller is already executing.
