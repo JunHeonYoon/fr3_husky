@@ -327,6 +327,6 @@ def generate_launch_description():
         DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
         DeclareLaunchArgument('launch_rviz',         default_value='true',  description='Launch RViz'),
-        DeclareLaunchArgument('launch_move_group',   default_value='false', description='Launch move_group (needed for fr3_move_to_joint)'),
+        DeclareLaunchArgument('launch_move_group',   default_value='true', description='Launch move_group (needed for fr3_move_to_joint)'),
         OpaqueFunction(function=_launch_setup),
     ])
