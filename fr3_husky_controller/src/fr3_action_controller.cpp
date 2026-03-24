@@ -242,6 +242,22 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     model_updater_->setDRCRobotData(std::move(robot_data));
     model_updater_->setDRCRobotController(std::move(robot_controller));
 
+    // Gripper action clients — created per robot arm when hand is present in URDF
+    model_updater_->has_hand_ = has_hand;
+    if (has_hand)
+    {
+        for (const auto& name : params_.robot_name)
+        {
+            const std::string prefix = name + "_franka_gripper";
+            GripperClients clients;
+            clients.grasp  = rclcpp_action::create_client<franka_msgs::action::Grasp>(get_node(), prefix + "/grasp");
+            clients.move   = rclcpp_action::create_client<franka_msgs::action::Move>(get_node(), prefix + "/move");
+            clients.homing = rclcpp_action::create_client<franka_msgs::action::Homing>(get_node(), prefix + "/homing");
+            model_updater_->gripper_clients_[name] = std::move(clients);
+            LOGI(get_node(), "Gripper action clients created for '%s' (prefix: %s)", name.c_str(), prefix.c_str());
+        }
+    }
+
     action_servers_ = servers::ActionServerManager::createAllFR3(get_node(), *model_updater_);
     active_server_.reset();
     

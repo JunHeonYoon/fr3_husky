@@ -511,4 +511,116 @@ void FR3HuskyModelUpdater::haltCommands()
     for (auto & h : robot_handle_.right_wheels) h.command.get().set_value(0.0);
 }
 
+bool FR3HuskyModelUpdater::GripperMove(const std::string robot_name, const double width, const double speed)
+{
+    // 1. Check whether a hand is present in the URDF
+    if (!has_hand_)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperMove] No hand detected in URDF.");
+        return false;
+    }
+
+    // 2. Check whether a gripper client exists for the given robot_name
+    auto it = gripper_clients_.find(robot_name);
+    if (it == gripper_clients_.end() || !it->second.move)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperMove] No gripper client for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    // 3. Check whether the action server is ready
+    if (!it->second.move->action_server_is_ready())
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperMove] Action server not ready for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    // 4. Validate input arguments
+    constexpr double kMaxWidth = 0.08;   // maximum gripper opening width [m]
+    constexpr double kMaxSpeed = 0.3;    // [m/s]
+    if (width < 0.0 || width > kMaxWidth)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperMove] width=%.4f out of range [0.0, %.2f].", width, kMaxWidth);
+        return false;
+    }
+    if (speed <= 0.0 || speed > kMaxSpeed)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperMove] speed=%.4f out of range (0.0, %.2f].", speed, kMaxSpeed);
+        return false;
+    }
+
+    // 5. Send goal
+    auto goal = franka_msgs::action::Move::Goal{};
+    goal.width = width;
+    goal.speed = speed;
+    it->second.move->async_send_goal(goal);
+
+    if (node_) RCLCPP_INFO(node_->get_logger(), "[GripperMove] '%s' width=%.4f speed=%.4f", robot_name.c_str(), width, speed);
+    return true;
+}
+
+bool FR3HuskyModelUpdater::GripperGrasp(const std::string robot_name, const double width, const double speed, const double force, const std::pair<double, double> epsilon)
+{
+    // 1. Check whether a hand is present in the URDF
+    if (!has_hand_)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] No hand detected in URDF.");
+        return false;
+    }
+
+    // 2. Check whether a gripper client exists for the given robot_name
+    auto it = gripper_clients_.find(robot_name);
+    if (it == gripper_clients_.end() || !it->second.grasp)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] No gripper client for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    // 3. Check whether the action server is ready
+    if (!it->second.grasp->action_server_is_ready())
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] Action server not ready for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    // 4. Validate input arguments
+    constexpr double kMaxWidth   = 0.08;   // [m]
+    constexpr double kMaxSpeed   = 0.3;    // [m/s]
+    constexpr double kMaxForce   = 140.0;  // [N] maximum grasping force of the Franka gripper
+    constexpr double kMaxEpsilon = 0.08;   // [m]
+    if (width < 0.0 || width > kMaxWidth)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] width=%.4f out of range [0.0, %.2f].", width, kMaxWidth);
+        return false;
+    }
+    if (speed <= 0.0 || speed > kMaxSpeed)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] speed=%.4f out of range (0.0, %.2f].", speed, kMaxSpeed);
+        return false;
+    }
+    if (force <= 0.0 || force > kMaxForce)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] force=%.2f out of range (0.0, %.1f].", force, kMaxForce);
+        return false;
+    }
+    if (epsilon.first < 0.0 || epsilon.first > kMaxEpsilon || epsilon.second < 0.0 || epsilon.second > kMaxEpsilon)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperGrasp] epsilon (%.4f, %.4f) out of range [0.0, %.2f].", epsilon.first, epsilon.second, kMaxEpsilon);
+        return false;
+    }
+
+    // 5. Send goal
+    auto goal = franka_msgs::action::Grasp::Goal{};
+    goal.width          = width;
+    goal.speed          = speed;
+    goal.force          = force;
+    goal.epsilon.inner  = epsilon.first;
+    goal.epsilon.outer  = epsilon.second;
+    it->second.grasp->async_send_goal(goal);
+
+    if (node_) RCLCPP_INFO(node_->get_logger(), "[GripperGrasp] '%s' width=%.4f speed=%.4f force=%.2f epsilon=(%.4f, %.4f)",
+                           robot_name.c_str(), width, speed, force, epsilon.first, epsilon.second);
+    return true;
+}
+
 }  // namespace fr3_husky_controller

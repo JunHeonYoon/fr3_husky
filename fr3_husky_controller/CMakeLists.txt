@@ -32,6 +32,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    franka_msgs
     nav_msgs
     realtime_tools
     tf2
@@ -136,6 +137,7 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    franka_msgs
     nav_msgs
     realtime_tools
     tf2
