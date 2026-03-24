@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -148,6 +149,24 @@ public:
 
     bool update(const rclcpp::Time& time, const rclcpp::Duration& period) override
     {
+        // Handle same-server preemption: a new goal arrived while this server was active.
+        if (preempt_pending_.load(std::memory_order_acquire))
+        {
+            finalizeGoal(StopReason::ABORTED);  // abort current goal; CANCELED requires CANCELING state (client-initiated only)
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                active_goal_     = preempt_goal_handle_;
+                active_goal_msg_ = std::move(preempt_goal_msg_);
+                active_          = true;
+                preempt_goal_handle_.reset();
+                preempt_pending_.store(false, std::memory_order_release);
+            }
+
+            onActivated();  // calls updateJointStates + updateRobotData + onStart
+            return true;
+        }
+
         std::shared_ptr<GoalHandle> goal_handle;
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -256,6 +275,8 @@ protected:
     virtual void onStart() {}
     virtual ComputeResult compute(const rclcpp::Time& time, const rclcpp::Duration& period) = 0;
     virtual void onStop(StopReason reason) {(void)reason;}
+    // Override to return true to allow a new incoming goal to preempt (cancel) the current one.
+    virtual bool allowPreemption() const { return false; }
     virtual ResultPtr makeResult(StopReason reason)
     {
         (void)reason;
@@ -286,10 +307,19 @@ private:
 
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (active_ || active_goal_)
+            if (active_ || active_goal_ || preempt_pending_.load(std::memory_order_relaxed))
             {
-                RCLCPP_WARN(node_->get_logger(), "[%s] Reject goal while another goal is active", name_.c_str());
-                return GoalResponse::REJECT;
+                if (!allowPreemption())
+                {
+                    RCLCPP_WARN(node_->get_logger(), "[%s] Reject goal while another goal is active", name_.c_str());
+                    return GoalResponse::REJECT;
+                }
+                if (preempt_pending_.load(std::memory_order_relaxed))
+                {
+                    // Don't stack preemptions
+                    RCLCPP_WARN(node_->get_logger(), "[%s] Reject goal: preemption already pending", name_.c_str());
+                    return GoalResponse::REJECT;
+                }
             }
         }
 
@@ -339,16 +369,24 @@ private:
             return;
         }
 
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            active_goal_ = goal_handle;
-            active_goal_msg_ = std::move(goal_copy);
-            active_ = true;
-        }
-
-        // Transition from ACCEPTED → EXECUTING so that succeed()/abort()/canceled()
+        // Transition from ACCEPTED → EXECUTING so that canceled()/succeed()/abort()
         // are valid state transitions when the goal finishes.
         goal_handle->execute();
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (active_ || active_goal_)
+            {
+                // Preemption: store new goal; update() will cancel current and activate this one.
+                preempt_goal_handle_ = goal_handle;
+                preempt_goal_msg_    = std::move(goal_copy);
+                preempt_pending_.store(true, std::memory_order_release);
+                return;
+            }
+            active_goal_     = goal_handle;
+            active_goal_msg_ = std::move(goal_copy);
+            active_          = true;
+        }
 
         requestActivate();
     }
@@ -423,6 +461,11 @@ private:
     Goal active_goal_msg_{};
     bool active_{false};
     mutable std::mutex mutex_;
+
+    // Same-server preemption: pending new goal that will replace the current one in update()
+    std::shared_ptr<GoalHandle> preempt_goal_handle_;
+    Goal preempt_goal_msg_{};
+    std::atomic<bool> preempt_pending_{false};
 };
 
 #define REGISTER_FR3_ACTION_SERVER(ServerClass, server_name)                               \

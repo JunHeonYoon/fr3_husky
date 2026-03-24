@@ -562,27 +562,7 @@ controller_interface::return_type FR3HuskyActionController::update(const rclcpp:
 
     mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
 
-    if (!active_server_)
-    {
-        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> best;
-        int best_p = std::numeric_limits<int>::min();
-
-        for (auto& s : action_servers_)
-        {
-            if (s->consumeActivateRequest())
-            {
-            const int p = s->priority();
-            if (!best || p > best_p) { best = s; best_p = p; }
-            }
-        }
-
-        if (best)
-        {
-            active_server_ = best;
-            active_server_->onActivated();
-        }
-    }
-
+    // 1. Deactivate current server if it is done or canceled.
     if (active_server_)
     {
         const bool cancel = active_server_->consumeCancelRequest();
@@ -592,6 +572,41 @@ controller_interface::return_type FR3HuskyActionController::update(const rclcpp:
         {
             active_server_->onDeactivated();
             active_server_.reset();
+        }
+    }
+
+    // 2. Scan for activate requests; higher-priority servers preempt lower-priority ones.
+    {
+        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> best;
+        int best_p = std::numeric_limits<int>::min();
+
+        for (auto& s : action_servers_)
+        {
+            if (s->consumeActivateRequest())
+            {
+                const int p = s->priority();
+                if (!best || p > best_p) { best = s; best_p = p; }
+            }
+        }
+
+        if (best)
+        {
+            if (!active_server_)
+            {
+                active_server_ = best;
+                active_server_->onActivated();
+            }
+            else if (best_p > active_server_->priority())
+            {
+                RCLCPP_INFO(get_node()->get_logger(),
+                            "[Controller] Preempting [%s] (priority=%d) with [%s] (priority=%d)",
+                            active_server_->getName().c_str(), active_server_->priority(),
+                            best->getName().c_str(), best_p);
+                active_server_->onDeactivated();
+                active_server_.reset();
+                active_server_ = best;
+                active_server_->onActivated();
+            }
         }
     }
 
