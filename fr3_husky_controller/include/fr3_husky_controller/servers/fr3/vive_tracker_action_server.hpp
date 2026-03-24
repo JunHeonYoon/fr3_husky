@@ -27,7 +27,8 @@ public:
     ViveTracker(const std::string& name, const NodePtr& node, ModelUpdaterBase& model_updater);
     ~ViveTracker() override = default;
 
-    int priority() const override { return 0; }
+    int priority() const override { return 7; }
+    bool allowPreemption() const override { return true; }
 
 private:
     bool acceptGoal(const ActionT::Goal& goal) override;

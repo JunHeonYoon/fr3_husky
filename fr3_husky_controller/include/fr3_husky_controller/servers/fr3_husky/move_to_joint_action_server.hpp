@@ -44,6 +44,7 @@ public:
     ~MoveToJoint() override;
 
     int priority() const override { return 0; }
+    bool allowPreemption() const override { return false; }  // if true, a new incoming goal preempts (aborts) the current one
 
 private:
     bool          acceptGoal(const ActionT::Goal& goal) override;
