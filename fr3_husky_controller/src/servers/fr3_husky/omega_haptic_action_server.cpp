@@ -277,7 +277,7 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(
                                                                                 time_verbose);
             if(!is_qp_solved)
             {
-                fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_data_->getGravityActuated().segment(fr3_husky_model_updater_.robot_data_->getJointIndex().mani_start,
+                fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_data_->getGravityActuated().segment(fr3_husky_model_updater_.robot_data_->getActuatorIndex().mani_start,
                                                                                                                                     fr3_husky_model_updater_.manipulator_dof_);
                 wheel_acc_desired.setZero(fr3_husky_model_updater_.mobile_dof_);
 
