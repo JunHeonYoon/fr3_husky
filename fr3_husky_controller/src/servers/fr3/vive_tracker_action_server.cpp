@@ -17,6 +17,15 @@ FR3ModelUpdater& getFR3ModelUpdater(ModelUpdaterBase& model_updater, const std::
     return *fr3_model_updater;
 }
 
+// Extract robot name ("left" or "right") from an ee_name such as "left_fr3_hand_tcp".
+// Returns an empty string if the prefix is not recognised.
+std::string getRobotNameFromEEName(const std::string& ee_name)
+{
+    if (ee_name.rfind("left_", 0) == 0)  return "left";
+    if (ee_name.rfind("right_", 0) == 0) return "right";
+    return "";
+}
+
 }  // namespace
 
 ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpdaterBase& model_updater)
@@ -139,6 +148,10 @@ void ViveTracker::onStart()
     waiting_for_jtc_.store(false, std::memory_order_relaxed);
     prev_l_button0_ = false;
     prev_r_button0_ = false;
+    prev_l_trigger_ = false;
+    prev_r_trigger_ = false;
+    gripper_is_grasping_[0] = false;
+    gripper_is_grasping_[1] = false;
     ee_data_.clear();
 
     if(!control_left_ee_name_.empty())
@@ -202,7 +215,7 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
                     for (size_t j = 0; j < FR3_DOF; ++j)
                     {
                         mtj_goal.joint_names.push_back(robot_name + "_" + model_updater_.arm_id_ + "_joint" + std::to_string(j+1));
-                        mtj_goal.target_positions.push_back(HomePose(j - 1));
+                        mtj_goal.target_positions.push_back(HomePose(j));
                     }
                 }
                 mtj_goal.max_velocity_scaling_factor     = 0.1;
@@ -252,6 +265,63 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             if(i == 0 && !control_left_ee_name_.empty())       ee_data_[control_left_ee_name_].setInit();
             else if(i == 1 && !control_right_ee_name_.empty()) ee_data_[control_right_ee_name_].setInit();
         }
+    }
+
+    // Gripper control: trigger button (index 0) falling edge toggles grasp / open.
+    // The robot to control is derived from the ee_name assigned to each vive controller.
+    {
+        const bool l_trigger = button_states_local[0][0];
+        const bool r_trigger = button_states_local[1][0];
+
+        // Left controller
+        if (!control_left_ee_name_.empty())
+        {
+            const bool falling = prev_l_trigger_ && !l_trigger;
+            if (falling)
+            {
+                const std::string robot_name = getRobotNameFromEEName(control_left_ee_name_);
+                if (!robot_name.empty())
+                {
+                    gripper_is_grasping_[0] = !gripper_is_grasping_[0];
+                    if (gripper_is_grasping_[0])
+                    {
+                        RCLCPP_INFO(node_->get_logger(), "[%s] lhand trigger released → GripperGrasp('%s')", name_.c_str(), robot_name.c_str());
+                        fr3_model_updater_.GripperGrasp(robot_name);
+                    }
+                    else
+                    {
+                        RCLCPP_INFO(node_->get_logger(), "[%s] lhand trigger released → GripperOpen('%s')", name_.c_str(), robot_name.c_str());
+                        fr3_model_updater_.GripperOpen(robot_name);
+                    }
+                }
+            }
+        }
+        prev_l_trigger_ = l_trigger;
+
+        // Right controller
+        if (!control_right_ee_name_.empty())
+        {
+            const bool falling = prev_r_trigger_ && !r_trigger;
+            if (falling)
+            {
+                const std::string robot_name = getRobotNameFromEEName(control_right_ee_name_);
+                if (!robot_name.empty())
+                {
+                    gripper_is_grasping_[1] = !gripper_is_grasping_[1];
+                    if (gripper_is_grasping_[1])
+                    {
+                        RCLCPP_INFO(node_->get_logger(), "[%s] rhand trigger released → GripperGrasp('%s')", name_.c_str(), robot_name.c_str());
+                        fr3_model_updater_.GripperGrasp(robot_name);
+                    }
+                    else
+                    {
+                        RCLCPP_INFO(node_->get_logger(), "[%s] rhand trigger released → GripperOpen('%s')", name_.c_str(), robot_name.c_str());
+                        fr3_model_updater_.GripperOpen(robot_name);
+                    }
+                }
+            }
+        }
+        prev_r_trigger_ = r_trigger;
     }
 
     if(!control_left_ee_name_.empty()) // left vive controller

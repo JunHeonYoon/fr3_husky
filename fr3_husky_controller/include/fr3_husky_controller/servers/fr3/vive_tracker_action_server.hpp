@@ -86,6 +86,11 @@ private:
     bool prev_r_button0_{false};
     ActionT::Goal saved_vive_goal_{};  // saved goal params for auto-resume after init
 
+    // gripper control: trigger button (index 0) falling edge toggles grasp / open
+    bool prev_l_trigger_{false};        // previous trigger state for left controller
+    bool prev_r_trigger_{false};        // previous trigger state for right controller
+    bool gripper_is_grasping_[2]{false, false}; // [left, right] gripper toggle state
+
     // action clients
     using MoveToJointAction = fr3_husky_msgs::action::MoveToJoint;
     rclcpp_action::Client<MoveToJointAction>::SharedPtr move_to_joint_client_;
