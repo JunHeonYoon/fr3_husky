@@ -26,19 +26,52 @@ ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpda
     pose_sub_         = node_->create_subscription<geometry_msgs::msg::PoseArray>("tracker_pose", 1, std::bind(&ViveTracker::subPoseCallback, this, std::placeholders::_1));
     l_button_state_sub_ = node_->create_subscription<std_msgs::msg::Int32MultiArray>("lhand_button", 1, std::bind(&ViveTracker::subLButtonCallback, this, std::placeholders::_1));
     r_button_state_sub_ = node_->create_subscription<std_msgs::msg::Int32MultiArray>("rhand_button", 1, std::bind(&ViveTracker::subRButtonCallback, this, std::placeholders::_1));
-    
+
     tracker_poses_.assign(3, Eigen::Affine3d::Identity());
     tracker_poses_init_.assign(3, Eigen::Affine3d::Identity());
     button_states_.assign(2, std::vector<bool>(4, false));
     is_mouse_mode_on_.assign(2, false);
 
     tracker_base2robot_base_.assign(2, Eigen::Matrix3d::Identity());
-    // tracker_base2robot_base_[0] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix(); 
+    // tracker_base2robot_base_[0] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix();
                                 //   Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-    // tracker_base2robot_base_[1] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix() * 
+    // tracker_base2robot_base_[1] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix() *
     //                               Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
     ee_data_.clear();
+
+    // Action clients
+    move_to_joint_client_ = rclcpp_action::create_client<MoveToJointAction>(node_, "fr3_move_to_joint");
+    vt_self_client_       = rclcpp_action::create_client<ActionT>(node_, name_);
+
+    // Subscribe to JTC action status to detect when trajectory execution completes
+    auto jtc_qos = rclcpp::QoS(1).reliable().transient_local();
+    jtc_status_sub_ = node_->create_subscription<action_msgs::msg::GoalStatusArray>(
+        "fr3_joint_trajectory_controller/_action/status",
+        jtc_qos,
+        [this](const action_msgs::msg::GoalStatusArray::SharedPtr msg)
+        {
+            if (!waiting_for_jtc_.load(std::memory_order_relaxed)) return;
+
+            bool jtc_busy = false;
+            for (const auto& gs : msg->status_list)
+            {
+                if (gs.status == action_msgs::msg::GoalStatus::STATUS_EXECUTING ||
+                    gs.status == action_msgs::msg::GoalStatus::STATUS_ACCEPTED)
+                {
+                    jtc_busy = true;
+                    break;
+                }
+            }
+
+            if (!jtc_busy)
+            {
+                waiting_for_jtc_.store(false, std::memory_order_relaxed);
+                RCLCPP_INFO(node_->get_logger(),
+                            "[%s] JTC finished — re-activating ViveTracker", name_.c_str());
+                vt_self_client_->async_send_goal(saved_vive_goal_);
+            }
+        });
 
     RCLCPP_INFO(node_->get_logger(), "[%s] ViveTracker created", name_.c_str());
 }
@@ -86,6 +119,7 @@ void ViveTracker::onGoalAccepted(const ActionT::Goal& goal)
     move_ori_ = goal.move_orientation;
     tracker_pos_multiplier_ = static_cast<double>(goal.tracker_pos_multiplier);
     tracker_ori_multiplier_ = static_cast<double>(goal.tracker_ori_multiplier);
+    saved_vive_goal_ = goal;
 }
 
 void ViveTracker::onStart()
@@ -101,6 +135,10 @@ void ViveTracker::onStart()
     }
 
     is_mouse_mode_on_.assign(2, false);
+    is_initialize_mode_on_ = false;
+    waiting_for_jtc_.store(false, std::memory_order_relaxed);
+    prev_l_button0_ = false;
+    prev_r_button0_ = false;
     ee_data_.clear();
 
     if(!control_left_ee_name_.empty())
@@ -143,6 +181,55 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
     {
         std::lock_guard<std::mutex> lock(button_state_mutex_);
         button_states_local = button_states_;
+    }
+
+    // Initialize mode
+    {
+        const bool l_btn0 = button_states_local[0][2];
+        const bool r_btn0 = button_states_local[1][2];
+
+        if (!is_initialize_mode_on_)
+        {
+            const bool l_rising = l_btn0 && !prev_l_button0_;
+            const bool r_rising = r_btn0 && !prev_r_button0_;
+            if (l_rising || r_rising)
+            {
+                is_initialize_mode_on_ = true;
+
+                MoveToJointAction::Goal mtj_goal;
+                for (const auto& robot_name : model_updater_.robot_names_)
+                {
+                    for (size_t j = 0; j < FR3_DOF; ++j)
+                    {
+                        mtj_goal.joint_names.push_back(robot_name + "_" + model_updater_.arm_id_ + "_joint" + std::to_string(j+1));
+                        mtj_goal.target_positions.push_back(HomePose(j - 1));
+                    }
+                }
+                mtj_goal.max_velocity_scaling_factor     = 0.1;
+                mtj_goal.max_acceleration_scaling_factor = 0.1;
+
+                // When MoveToJoint succeeds (trajectory sent to JTC), set waiting_for_jtc_ so
+                // the JTC status subscriber re-activates ViveTracker after the robot finishes moving.
+                auto send_opts = rclcpp_action::Client<MoveToJointAction>::SendGoalOptions();
+                send_opts.result_callback =
+                    [this](
+                        const rclcpp_action::ClientGoalHandle<MoveToJointAction>::WrappedResult&)
+                    {
+                        RCLCPP_INFO(node_->get_logger(), "[%s] MoveToJoint done — waiting for JTC to finish", name_.c_str());
+                        waiting_for_jtc_.store(true, std::memory_order_relaxed);
+                    };
+
+                move_to_joint_client_->async_send_goal(mtj_goal, send_opts);
+                RCLCPP_INFO(node_->get_logger(),
+                            "[%s] Initialize mode ON — goal sent to fr3_move_to_joint, yielding",
+                            name_.c_str());
+
+                // Yield: deactivate ViveTracker so MoveToJoint can become active_server_
+                return ComputeResult::SUCCEEDED;
+            }
+        }
+        prev_l_button0_ = l_btn0;
+        prev_r_button0_ = r_btn0;
     }
 
     for(size_t i = 0; i < 2; ++i)
