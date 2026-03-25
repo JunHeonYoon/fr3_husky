@@ -206,4 +206,3 @@ ros2 launch fr3_husky_controller fr3_husky_controller.launch.py \
 
 ## TODO
 - In mujoco environment, we use pinocchio to get robot states (e.g. jacobian, mass matrix...). Are these parameters validate data?
-- For real robot, franka hand can be controlled by ROS2 action [example](https://github.com/JunHeonYoon/franka_ros2/blob/humble/franka_example_controllers/src/gripper_example_controller.cpp). How to mimic that framework to mujoco environment?
