@@ -78,6 +78,9 @@ ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpda
             }
         });
 
+    // Initialize franka hand state
+    for(const auto& robot_name : model_updater_.robot_names_) fr3_model_updater_.GripperHoming(robot_name); 
+
     RCLCPP_INFO(node_->get_logger(), "[%s] ViveTracker created", name_.c_str());
 }
 

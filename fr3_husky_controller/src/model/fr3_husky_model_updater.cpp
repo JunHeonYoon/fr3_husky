@@ -559,6 +559,34 @@ bool FR3HuskyModelUpdater::GripperMove(const std::string robot_name, const doubl
     return true;
 }
 
+bool FR3HuskyModelUpdater::GripperHoming(const std::string robot_name)
+{
+    if (!has_hand_)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperHoming] No hand detected in URDF.");
+        return false;
+    }
+
+    auto it = gripper_clients_.find(robot_name);
+    if (it == gripper_clients_.end() || !it->second.homing)
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperHoming] No gripper client for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    if (!it->second.homing->action_server_is_ready())
+    {
+        if (node_) RCLCPP_WARN(node_->get_logger(), "[GripperHoming] Action server not ready for robot '%s'.", robot_name.c_str());
+        return false;
+    }
+
+    auto goal = franka_msgs::action::Homing::Goal{};
+    it->second.homing->async_send_goal(goal);
+
+    if (node_) RCLCPP_INFO(node_->get_logger(), "[GripperHoming] '%s'", robot_name.c_str());
+    return true;
+}
+
 bool FR3HuskyModelUpdater::GripperGrasp(const std::string robot_name, const double width, const double speed, const double force, const std::pair<double, double> epsilon)
 {
     // 1. Check whether a hand is present in the URDF

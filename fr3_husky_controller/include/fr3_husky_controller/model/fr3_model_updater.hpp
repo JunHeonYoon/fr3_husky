@@ -44,7 +44,8 @@ class FR3ModelUpdater final : public ModelUpdaterBase
         bool GripperMove(const std::string robot_name, const double width, const double speed = 0.1);
         bool GripperOpen(const std::string robot_name, const double speed = 0.1)  { return GripperMove(robot_name, 0.08, speed); }
         bool GripperClose(const std::string robot_name, const double speed = 0.1) { return GripperMove(robot_name, 0.00, speed); }
-        bool GripperGrasp(const std::string robot_name, 
+        bool GripperHoming(const std::string robot_name);
+        bool GripperGrasp(const std::string robot_name,
                           const double width = 0.0, 
                           const double speed = 0.1, 
                           const double force = 30.0, 
