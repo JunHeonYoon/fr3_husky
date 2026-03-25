@@ -39,9 +39,14 @@ class FR3HuskyModelUpdater final : public ModelUpdaterBase
         void haltCommands() override;
         bool getHandlesReady() const override { return !(robot_handle_.mani_joints.empty() || robot_handle_.left_wheels.empty() || robot_handle_.right_wheels.empty()); }
         void setInitFromCurrent();
-        void writeCommand(const Eigen::VectorXd& command_mani, 
+        void writeCommand(const Eigen::VectorXd& command_mani,
                         const Eigen::Vector2d& command_mobi);
         void forceStopMobile();
+        bool GripperMove(const std::string robot_name, double width, double speed);
+        bool GripperOpen(const std::string robot_name, double speed = 0.1)  { return GripperMove(robot_name, 0.08, speed); }
+        bool GripperClose(const std::string robot_name, double speed = 0.1) { return GripperMove(robot_name, 0.00, speed); }
+        bool GripperHoming(const std::string robot_name);
+        bool GripperGrasp(const std::string robot_name, double width = 0.0, double speed = 0.1, double force = 30.0, std::pair<double, double> epsilon = {0.08, 0.08});
     
     public:
         std::shared_ptr<drc::MobileManipulator::RobotData> robot_data_;

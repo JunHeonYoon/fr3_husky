@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -43,6 +44,7 @@ public:
     ~MoveToJoint() override;
 
     int priority() const override { return 0; }
+    bool allowPreemption() const override { return false; }  // if true, a new incoming goal preempts (aborts) the current one
 
 private:
     bool          acceptGoal(const ActionT::Goal& goal) override;
@@ -53,9 +55,12 @@ private:
     void          onStop(StopReason reason) override;
     ResultPtr     makeResult(StopReason reason) override;
 
-    static std::string inferGroup(const std::vector<std::string>& joint_names);
     void writeHoldCommands();
     void runPlanning();
+
+    // ---- Planning group (derived from robot_names at construction) -----------
+    std::string planning_group_;
+    std::set<std::string> valid_joint_prefixes_;
 
     FR3HuskyModelUpdater& fr3_husky_model_updater_;
 

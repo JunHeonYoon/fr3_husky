@@ -32,6 +32,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    franka_msgs
     nav_msgs
     realtime_tools
     tf2
@@ -92,6 +93,7 @@ add_library(${PROJECT_NAME} SHARED
     src/servers/fr3/move_to_joint_action_server.cpp
     src/servers/fr3_husky/joint_trajectory_controller_action_server.cpp
     src/servers/fr3_husky/move_to_joint_action_server.cpp
+    src/servers/fr3/vive_tracker_action_server.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -135,6 +137,7 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     urdf
     dyros_robot_controller
     fr3_husky_msgs
+    franka_msgs
     nav_msgs
     realtime_tools
     tf2

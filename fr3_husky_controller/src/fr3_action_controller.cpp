@@ -242,6 +242,22 @@ CallbackReturn FR3ActionController::on_configure(const rclcpp_lifecycle::State& 
     model_updater_->setDRCRobotData(std::move(robot_data));
     model_updater_->setDRCRobotController(std::move(robot_controller));
 
+    // Gripper action clients — created per robot arm when hand is present in URDF
+    model_updater_->has_hand_ = has_hand;
+    if (has_hand)
+    {
+        for (const auto& name : params_.robot_name)
+        {
+            const std::string prefix = name + "_franka_gripper";
+            GripperClients clients;
+            clients.grasp  = rclcpp_action::create_client<franka_msgs::action::Grasp>(get_node(), prefix + "/grasp");
+            clients.move   = rclcpp_action::create_client<franka_msgs::action::Move>(get_node(), prefix + "/move");
+            clients.homing = rclcpp_action::create_client<franka_msgs::action::Homing>(get_node(), prefix + "/homing");
+            model_updater_->gripper_clients_[name] = std::move(clients);
+            LOGI(get_node(), "Gripper action clients created for '%s' (prefix: %s)", name.c_str(), prefix.c_str());
+        }
+    }
+
     action_servers_ = servers::ActionServerManager::createAllFR3(get_node(), *model_updater_);
     active_server_.reset();
     
@@ -379,27 +395,9 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     model_updater_->updateJointStates();
     model_updater_->updateRobotData();
 
-    if (!active_server_)
-    {
-        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> best;
-        int best_p = std::numeric_limits<int>::min();
-
-        for (auto& s : action_servers_)
-        {
-            if (s->consumeActivateRequest())
-            {
-            const int p = s->priority();
-            if (!best || p > best_p) { best = s; best_p = p; }
-            }
-        }
-
-        if (best)
-        {
-            active_server_ = best;
-            active_server_->onActivated();
-        }
-    }
-
+    // 1. Deactivate current server if it is done or canceled.
+    //    Do this BEFORE scanning for new activations so that a server finishing in this
+    //    cycle frees the slot before the next server's pending activate is evaluated.
     if (active_server_)
     {
         const bool cancel = active_server_->consumeCancelRequest();
@@ -409,6 +407,44 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
         {
             active_server_->onDeactivated();
             active_server_.reset();
+        }
+    }
+
+    // 2. Scan for activate requests; higher-priority servers preempt lower-priority ones.
+    {
+        std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> best;
+        int best_p = std::numeric_limits<int>::min();
+
+        for (auto& s : action_servers_)
+        {
+            if (s->consumeActivateRequest())
+            {
+                const int p = s->priority();
+                if (!best || p > best_p) { best = s; best_p = p; }
+            }
+        }
+
+        if (best)
+        {
+            if (!active_server_)
+            {
+                active_server_ = best;
+                active_server_->onActivated();
+            }
+            else if (best_p > active_server_->priority())
+            {
+                RCLCPP_INFO(get_node()->get_logger(),
+                            "[Controller] Preempting [%s] (priority=%d) with [%s] (priority=%d)",
+                            active_server_->getName().c_str(), active_server_->priority(),
+                            best->getName().c_str(), best_p);
+                active_server_->onDeactivated();
+                active_server_.reset();
+                active_server_ = best;
+                active_server_->onActivated();
+            }
+            // else: new server has equal/lower priority → cannot preempt, flag consumed.
+            // This is acceptable: equal/lower priority activation while a server runs
+            // is an unusual case not expected in normal operation.
         }
     }
 

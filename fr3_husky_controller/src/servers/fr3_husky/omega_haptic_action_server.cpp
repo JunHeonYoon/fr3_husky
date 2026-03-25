@@ -78,10 +78,10 @@ void OmegaHaptic::onGoalAccepted(const ActionT::Goal& goal)
     control_mode_ = goal.mode;
     control_ee_name_ = goal.ee_name;
     move_ori_ = goal.move_orientation;
-    hapic_pos_multiplier_ = static_cast<double>(goal.hapic_pos_multiplier);
-    hapic_ori_multiplier_ = static_cast<double>(goal.hapic_ori_multiplier);
-    hapic_lin_vel_multiplier_ = static_cast<double>(goal.hapic_lin_vel_multiplier);
-    hapic_ang_vel_multiplier_ = static_cast<double>(goal.hapic_ang_vel_multiplier);
+    haptic_pos_multiplier_ = static_cast<double>(goal.haptic_pos_multiplier);
+    haptic_ori_multiplier_ = static_cast<double>(goal.haptic_ori_multiplier);
+    haptic_lin_vel_multiplier_ = static_cast<double>(goal.haptic_lin_vel_multiplier);
+    haptic_ang_vel_multiplier_ = static_cast<double>(goal.haptic_ang_vel_multiplier);
 }
 
 void OmegaHaptic::onStart()
@@ -184,17 +184,17 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(
         // delta_pos (haptic_base) = R_init * D.translation()
         // delta_pos (robot_base)  = R_h2r * R_init * D.translation()
         // delta_pos (EE body)     = R_ee_init^T * delta_pos (robot_base)
-        const Eigen::Vector3d delta_pos = hapic_pos_multiplier_
+        const Eigen::Vector3d delta_pos = haptic_pos_multiplier_
             * R_ee_init.transpose() * R_h2r * R_init * haptic_pose_diff.translation();
 
-        // Orientation: scale rotation angle by hapic_ori_multiplier_ (via AngleAxis),
+        // Orientation: scale rotation angle by haptic_ori_multiplier_ (via AngleAxis),
         //              then convert haptic_init frame → robot_base → EE_init body frame
         Eigen::Matrix3d rot_diff_ee_body = Eigen::Matrix3d::Identity();
         if(move_ori_)
         {
             const Eigen::AngleAxisd aa(haptic_pose_diff.linear());
             const Eigen::Matrix3d R_diff_scaled = (std::abs(aa.angle()) > 1e-10)
-                ? Eigen::AngleAxisd(hapic_ori_multiplier_ * aa.angle(), aa.axis()).toRotationMatrix()
+                ? Eigen::AngleAxisd(haptic_ori_multiplier_ * aa.angle(), aa.axis()).toRotationMatrix()
                 : Eigen::Matrix3d::Identity();
             // R_diff (haptic_init) → R_h2r * R_diff * R_h2r^T (robot_base) → R_ee^T * (...) * R_ee (EE body)
             rot_diff_ee_body = R_ee_init.transpose() * R_h2r * R_diff_scaled * R_h2r.transpose() * R_ee_init;
@@ -277,7 +277,7 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(
                                                                                 time_verbose);
             if(!is_qp_solved)
             {
-                fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_data_->getGravityActuated().segment(fr3_husky_model_updater_.robot_data_->getJointIndex().mani_start,
+                fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_data_->getGravityActuated().segment(fr3_husky_model_updater_.robot_data_->getActuatorIndex().mani_start,
                                                                                                                                     fr3_husky_model_updater_.manipulator_dof_);
                 wheel_acc_desired.setZero(fr3_husky_model_updater_.mobile_dof_);
 
@@ -386,6 +386,6 @@ ros2 action list -t | grep omega_haptic
 
 # send goal 
 ros2 action send_goal /omega_haptic fr3_husky_msgs/action/OmegaHaptic \
-"{mode: 1, ee_name: 'left_fr3_hand_tcp', move_orientation: false, hapic_pos_multiplier: 1.0, hapic_ori_multiplier: 1.0, hapic_lin_vel_multiplier: 1.0, hapic_ang_vel_multiplier: 1.0}" \
+"{mode: 1, ee_name: 'left_fr3_hand_tcp', move_orientation: false, haptic_pos_multiplier: 1.0, haptic_ori_multiplier: 1.0, haptic_lin_vel_multiplier: 1.0, haptic_ang_vel_multiplier: 1.0}" \
 --feedback
 */

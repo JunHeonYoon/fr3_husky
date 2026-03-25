@@ -11,8 +11,12 @@
 #include <hardware_interface/loaned_command_interface.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <franka_semantic_components/franka_robot_model.hpp>
+#include <franka_msgs/action/grasp.hpp>
+#include <franka_msgs/action/move.hpp>
+#include <franka_msgs/action/homing.hpp>
 
 #ifndef FR3_DOF
 #define FR3_DOF 7
@@ -24,6 +28,14 @@
 
 namespace fr3_husky_controller
 {
+
+struct GripperClients
+{
+    rclcpp_action::Client<franka_msgs::action::Grasp>::SharedPtr   grasp;
+    rclcpp_action::Client<franka_msgs::action::Move>::SharedPtr    move;
+    rclcpp_action::Client<franka_msgs::action::Homing>::SharedPtr  homing;
+};
+
 struct JointHandle
 {
     std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> state;
@@ -89,6 +101,10 @@ class ModelUpdaterBase
         std::vector<std::string> robot_names_;
         std::vector<std::string> ee_names_;
         size_t num_robots_{0}; // number of FR3 arms
+
+        // Gripper action clients (populated when hand is detected in URDF)
+        bool has_hand_{false};
+        std::map<std::string, GripperClients> gripper_clients_; // key: robot_name ("left"/"right")
         size_t manipulator_dof_{0};
         const size_t mobile_dof_{2};
         const size_t virtual_dof_{3};
