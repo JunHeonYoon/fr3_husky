@@ -18,6 +18,18 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <std_msgs/msg/int32_multi_array.hpp>
 
+#define NUM_TRACKERS    3 // left, right, head
+#define NUM_CONTROLLERS 2 // left, right (only Focus3 controllers)
+#define IDX_LEFT_CON    0 // index of left controller pose in "tracker_pose" topic
+#define IDX_RIGHT_CON   1 // index of right controller pose in "tracker_pose" topic
+#define IDX_HEAD_CON    2 // index of HMD head pose in "tracker_pose" topic
+
+#define NUM_BUTTONS        4 // number of buttons in Focu3 controller [trigger, grip, a, b]
+#define IDX_TRIGGER_BUTTON 0 // index of Trigger button in "l/rhand_button" topic
+#define IDX_GRIP_BUTTON    1 // index of Trigger button in "l/rhand_button" topic
+#define IDX_A_BUTTON       2 // index of Trigger button in "l/rhand_button" topic
+#define IDX_B_BUTTON       3 // index of Trigger button in "l/rhand_button" topic
+
 namespace fr3_husky_controller::servers::fr3
 {
 
@@ -58,38 +70,34 @@ private:
     void subRButtonCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
 
     // vive controller state data
-    std::vector<Eigen::Affine3d> tracker_poses_;      // left, right, head
-    std::vector<Eigen::Affine3d> tracker_poses_init_; // left, right, head
-    std::vector<std::vector<bool>> button_states_;    // [left, right][trigger, grip, a, b]
-    std::vector<bool> is_mouse_mode_on_;              // left, right
+    std::vector<Eigen::Affine3d> controller_poses_;      // left, right, head
+    std::vector<Eigen::Affine3d> controller_poses_init_; // left, right, head
+    std::vector<std::vector<bool>> button_states_;       // [left, right][trigger, grip, a, b]
+    std::vector<std::vector<bool>> prev_button_states_;  // previous button states for edge detection
 
-    std::vector<Eigen::Matrix3d> tracker_base2robot_base_;
-
+    // states for ...
+    std::vector<bool> is_mouse_mode_on_{false, false};
+    bool is_initialize_mode_on_{false};
+    std::vector<bool> is_gripper_mode_on_{false, false};
+    
     // robot data
+    std::vector<Eigen::Matrix3d> tracker_base2robot_base_;
     std::map<std::string, drc::TaskSpaceData> ee_data_;
 
     // action goal data
-    int control_mode_;                  // 0: CLIK, 1: OSF, 2:QPIK, 3:QPID
-    std::string control_left_ee_name_;  // EE name for tracking left vive controller twist 
-    std::string control_right_ee_name_; // EE name for tracking right vive controller twist 
+    int control_mode_;                     // 0: CLIK, 1: OSF, 2:QPIK, 3:QPID
+    std::string left_controller_ee_name_;  // EE name for tracking left vive controller
+    std::string right_controller_ee_name_; // EE name for tracking right vive controller
     bool move_ori_;
-    double tracker_pos_multiplier_;
-    double tracker_ori_multiplier_;
+    double controller_pos_multiplier_;
+    double controller_ori_multiplier_;
 
     std::mutex tracker_pose_mutex_;
     std::mutex button_state_mutex_;
 
     // initialize mode: button A -> send goal to fr3_move_to_joint
-    bool is_initialize_mode_on_{false};
     const Eigen::Vector<double, FR3_DOF> HomePose{0., -0.785, 0.0, -2.356, 0.0, 1.571, 0.785};
-    bool prev_l_button0_{false};
-    bool prev_r_button0_{false};
     ActionT::Goal saved_vive_goal_{};  // saved goal params for auto-resume after init
-
-    // gripper control: trigger button (index 0) falling edge toggles grasp / open
-    bool prev_l_trigger_{false};        // previous trigger state for left controller
-    bool prev_r_trigger_{false};        // previous trigger state for right controller
-    bool gripper_is_grasping_[2]{false, false}; // [left, right] gripper toggle state
 
     // action clients
     using MoveToJointAction = fr3_husky_msgs::action::MoveToJoint;
