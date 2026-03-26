@@ -24,7 +24,7 @@ public:
     JointTrajectoryController(const std::string& name, const NodePtr& node, ModelUpdaterBase& model_updater);
     ~JointTrajectoryController() override = default;
 
-    int priority() const override { return 9; }
+    int priority() const override { return 8; }
     bool allowPreemption() const override { return false; }  // if true, a new incoming goal preempts (aborts) the current one
 
 private:
