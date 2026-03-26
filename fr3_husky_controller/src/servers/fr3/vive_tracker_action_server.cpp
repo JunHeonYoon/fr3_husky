@@ -412,7 +412,8 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
         fb->is_qp_solved = is_qp_solved;
         fb->time_verbose = time_verbose;
         publishFeedback(fb);
-    
+        
+        prev_button_states_ = button_states_;
         return ComputeResult::RUNNING;
     }
 }
@@ -477,7 +478,6 @@ void ViveTracker::subLJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
     }
     else
     {
-        prev_button_states_[IDX_LEFT_CON] = button_states_[IDX_LEFT_CON];
         for(size_t i = 0; i < msg->buttons.size(); ++i)
         {
             std::lock_guard<std::mutex> lock(button_state_mutex_);
@@ -495,7 +495,6 @@ void ViveTracker::subRJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
     }
     else
     {
-        prev_button_states_[IDX_RIGHT_CON] = button_states_[IDX_RIGHT_CON];
         for(size_t i = 0; i < msg->buttons.size(); ++i)
         {
             std::lock_guard<std::mutex> lock(button_state_mutex_);
