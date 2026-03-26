@@ -33,8 +33,8 @@ ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpda
   fr3_model_updater_(getFR3ModelUpdater(model_updater, name))
 {
     pose_sub_         = node_->create_subscription<geometry_msgs::msg::PoseArray>("tracker_pose", 1, std::bind(&ViveTracker::subPoseCallback, this, std::placeholders::_1));
-    l_button_state_sub_ = node_->create_subscription<std_msgs::msg::Int32MultiArray>("lhand_button", 1, std::bind(&ViveTracker::subLButtonCallback, this, std::placeholders::_1));
-    r_button_state_sub_ = node_->create_subscription<std_msgs::msg::Int32MultiArray>("rhand_button", 1, std::bind(&ViveTracker::subRButtonCallback, this, std::placeholders::_1));
+    l_joy_sub_ = node_->create_subscription<sensor_msgs::msg::Joy>("lhand_joy", 1, std::bind(&ViveTracker::subLJoyCallback, this, std::placeholders::_1));
+    r_joy_sub_ = node_->create_subscription<sensor_msgs::msg::Joy>("rhand_joy", 1, std::bind(&ViveTracker::subRJoyCallback, this, std::placeholders::_1));
 
     controller_poses_.assign(NUM_TRACKERS, Eigen::Affine3d::Identity());
     controller_poses_init_.assign(NUM_TRACKERS, Eigen::Affine3d::Identity());
@@ -136,10 +136,10 @@ void ViveTracker::onStart()
         std::lock_guard<std::mutex> lock(tracker_pose_mutex_);
         for(auto& tracker_pose : controller_poses_) tracker_pose.setIdentity();
     }
-    for(auto& tracker_pose_init : controller_poses_init_) tracker_pose_init.setIdentity();
+    for(auto& controller_pose_init : controller_poses_init_) controller_pose_init.setIdentity();
     {
         std::lock_guard<std::mutex> lock(button_state_mutex_);
-        for(auto& button_state : button_states_) button_state = std::vector<bool>(4, false);
+        for(auto& button_state : button_states_) button_state = std::vector<bool>(NUM_BUTTONS, false);
     }
 
     for(auto& prev_button_state : prev_button_states_) prev_button_state = std::vector<bool>(NUM_BUTTONS, false);
@@ -239,7 +239,7 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
         // Left controller
         if (!left_controller_ee_name_.empty())
         {
-            if (prev_button_states_[IDX_LEFT_CON][IDX_TRIGGER_BUTTON] && !button_states_local[IDX_LEFT_CON][IDX_TRIGGER_BUTTON])
+        if (!prev_button_states_[IDX_LEFT_CON][IDX_TRIGGER_BUTTON] && button_states_local[IDX_LEFT_CON][IDX_TRIGGER_BUTTON])
             {
                 const std::string robot_name = getRobotNameFromEEName(left_controller_ee_name_);
                 if (!robot_name.empty())
@@ -262,7 +262,7 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
         // Right controller
         if (!right_controller_ee_name_.empty())
         {
-            if (prev_button_states_[IDX_RIGHT_CON][IDX_TRIGGER_BUTTON] && !button_states_local[IDX_RIGHT_CON][IDX_TRIGGER_BUTTON])
+            if (!prev_button_states_[IDX_RIGHT_CON][IDX_TRIGGER_BUTTON] && button_states_local[IDX_RIGHT_CON][IDX_TRIGGER_BUTTON])
             {
                 const std::string robot_name = getRobotNameFromEEName(right_controller_ee_name_);
                 if (!robot_name.empty())
@@ -317,28 +317,6 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             target_vel.setZero();
             if(is_mouse_mode_on_[IDX_LEFT_CON])
             {
-                // Eigen::Affine3d tracker_pose_diff = controller_poses_init_[0].inverse() * controller_poses_local[0];
-    
-                // const Eigen::Matrix3d& R_h2r     = tracker_base2robot_base_[0];
-                // const Eigen::Matrix3d& R_init    = controller_poses_init_[0].linear();
-                // const Eigen::Matrix3d& R_ee_init = ee_data_[left_controller_ee_name_].x_init.linear();
-    
-                // const Eigen::Vector3d delta_pos = controller_pos_multiplier_
-                //     * R_ee_init.transpose() * R_h2r * R_init * tracker_pose_diff.translation();
-    
-                // Eigen::Matrix3d rot_diff_ee_body = Eigen::Matrix3d::Identity();
-                // if(move_ori_)
-                // {
-                //     const Eigen::AngleAxisd aa(tracker_pose_diff.linear());
-                //     const Eigen::Matrix3d R_diff_scaled = (std::abs(aa.angle()) > 1e-10)
-                //         ? Eigen::AngleAxisd(controller_ori_multiplier_ * aa.angle(), aa.axis()).toRotationMatrix()
-                //         : Eigen::Matrix3d::Identity();
-                //     rot_diff_ee_body = R_ee_init.transpose() * R_h2r * R_init * R_diff_scaled * R_init.transpose() * R_h2r.transpose() * R_ee_init;
-                // }
-    
-                // target_pose_diff.translation() = delta_pos;
-                // target_pose_diff.linear()      = rot_diff_ee_body;
-    
                 const Eigen::Affine3d T_con_init2con_cur = controller_poses_init_[IDX_LEFT_CON].inverse() * controller_poses_local[IDX_LEFT_CON];
                 const Eigen::Matrix3d R_ee_init2con_init = ee_data_[left_controller_ee_name_].x_init.linear().transpose() * tracker_base2robot_base_[IDX_LEFT_CON].transpose() * controller_poses_init_[IDX_LEFT_CON].linear();
     
@@ -370,29 +348,7 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             target_pose_diff.setIdentity();
             target_vel.setZero();
             if(is_mouse_mode_on_[IDX_RIGHT_CON])
-            {
-                // Eigen::Affine3d tracker_pose_diff = controller_poses_init_[1].inverse() * controller_poses_local[1];
-    
-                // const Eigen::Matrix3d& R_h2r     = tracker_base2robot_base_[1];
-                // const Eigen::Matrix3d& R_init    = controller_poses_init_[1].linear();
-                // const Eigen::Matrix3d& R_ee_init = ee_data_[right_controller_ee_name_].x_init.linear();
-    
-                // const Eigen::Vector3d delta_pos = controller_pos_multiplier_
-                //     * R_ee_init.transpose() * R_h2r * R_init * tracker_pose_diff.translation();
-    
-                // Eigen::Matrix3d rot_diff_ee_body = Eigen::Matrix3d::Identity();
-                // if(move_ori_)
-                // {
-                //     const Eigen::AngleAxisd aa(tracker_pose_diff.linear());
-                //     const Eigen::Matrix3d R_diff_scaled = (std::abs(aa.angle()) > 1e-10)
-                //         ? Eigen::AngleAxisd(controller_ori_multiplier_ * aa.angle(), aa.axis()).toRotationMatrix()
-                //         : Eigen::Matrix3d::Identity();
-                //     rot_diff_ee_body = R_ee_init.transpose() * R_h2r * R_init * R_diff_scaled * R_init.transpose() * R_h2r.transpose() * R_ee_init;
-                // }
-    
-                // target_pose_diff.translation() = delta_pos;
-                // target_pose_diff.linear()      = rot_diff_ee_body;
-    
+            {    
                 const Eigen::Affine3d T_con_init2con_cur = controller_poses_init_[IDX_RIGHT_CON].inverse() * controller_poses_local[IDX_RIGHT_CON];
                 const Eigen::Matrix3d R_ee_init2con_init = ee_data_[right_controller_ee_name_].x_init.linear().transpose() * tracker_base2robot_base_[IDX_RIGHT_CON].transpose() * controller_poses_init_[IDX_RIGHT_CON].linear();
     
@@ -513,37 +469,37 @@ void ViveTracker::subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr
     }
 }
 
-void ViveTracker::subLButtonCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
+void ViveTracker::subLJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
-    if(msg->data.size() != NUM_BUTTONS)
+    if(msg->buttons.size() != NUM_BUTTONS)
     {
-        RCLCPP_WARN(node_->get_logger(), "[%s] Size of Int32MultiArray for lhand_button (%ld) does not equal to 4.", name_.c_str(), msg->data.size());
+        RCLCPP_WARN(node_->get_logger(), "[%s] Size of buttons for lhand_joy (%ld) does not equal to %d.", name_.c_str(), msg->buttons.size(), NUM_BUTTONS);
     }
     else
     {
         prev_button_states_[IDX_LEFT_CON] = button_states_[IDX_LEFT_CON];
-        for(size_t i = 0; i < msg->data.size(); ++i)
+        for(size_t i = 0; i < msg->buttons.size(); ++i)
         {
             std::lock_guard<std::mutex> lock(button_state_mutex_);
-            button_states_[IDX_LEFT_CON][i] = (static_cast<int>(msg->data[i]) == 0) ? false : true;
+            button_states_[IDX_LEFT_CON][i] = (static_cast<int>(msg->buttons[i]) == 0) ? false : true;
         }
 
     }
 }
 
-void ViveTracker::subRButtonCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
+void ViveTracker::subRJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
-    if(msg->data.size() != NUM_BUTTONS)
+    if(msg->buttons.size() != NUM_BUTTONS)
     {
-        RCLCPP_WARN(node_->get_logger(), "[%s] Size of Int32MultiArray for rhand_button (%ld) does not equal to 4.", name_.c_str(), msg->data.size());
+        RCLCPP_WARN(node_->get_logger(), "[%s] Size of buttons for rhand_joy (%ld) does not equal to %d.", name_.c_str(), msg->buttons.size(), NUM_BUTTONS);
     }
     else
     {
         prev_button_states_[IDX_RIGHT_CON] = button_states_[IDX_RIGHT_CON];
-        for(size_t i = 0; i < msg->data.size(); ++i)
+        for(size_t i = 0; i < msg->buttons.size(); ++i)
         {
             std::lock_guard<std::mutex> lock(button_state_mutex_);
-            button_states_[IDX_RIGHT_CON][i] = (static_cast<int>(msg->data[i]) == 0) ? false : true;
+            button_states_[IDX_RIGHT_CON][i] = (static_cast<int>(msg->buttons[i]) == 0) ? false : true;
         }
 
     }
