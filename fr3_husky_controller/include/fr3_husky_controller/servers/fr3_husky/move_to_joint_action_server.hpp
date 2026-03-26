@@ -43,7 +43,7 @@ public:
                 ModelUpdaterBase& model_updater);
     ~MoveToJoint() override;
 
-    int priority() const override { return 0; }
+    int priority() const override { return 9; }
     bool allowPreemption() const override { return false; }  // if true, a new incoming goal preempts (aborts) the current one
 
 private:
@@ -56,6 +56,9 @@ private:
     ResultPtr     makeResult(StopReason reason) override;
 
     void writeHoldCommands();
+    /** Background thread: plan via MoveGroupInterface, wait until this
+     *  server has finished, then hand off the trajectory to
+     *  fr3_husky_joint_trajectory_controller. */
     void runPlanning();
 
     // ---- Planning group (derived from robot_names at construction) -----------
@@ -71,9 +74,10 @@ private:
     rclcpp::Subscription<action_msgs::msg::GoalStatusArray>::SharedPtr jtc_status_sub_;
     std::atomic<bool> jtc_busy_{false};
 
-    enum class PlanState : uint8_t { PLANNING, DONE, FAILED };
+    enum class PlanState : uint8_t { PLANNING, READY, FAILED };
     std::atomic<PlanState> plan_state_{PlanState::PLANNING};
     std::atomic<bool>      cancel_flag_{false};
+    std::atomic<bool>      handoff_requested_{false};
     std::string            plan_error_msg_;
     std::mutex             msg_mutex_;
     std::thread            planning_thread_;
