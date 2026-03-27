@@ -90,6 +90,11 @@ private:
     bool is_initialize_mode_on_{false};
     std::vector<bool> is_gripper_mode_on_{false, false};
     int mobile_mode_{0}; // 0: manipulator mode, 1: left controller, 2: right controller
+    Eigen::Affine3d world2mobi_base_frozen_{Eigen::Affine3d::Identity()}; // base pose snapshot when entering manipulator mode
+
+    // null space HomePose cubic
+    double control_start_time_{0.0};
+    Eigen::VectorXd q_init_for_home_; // joint config snapshot at manipulator mode start (for cubic null space)
 
     // robot data
     std::vector<Eigen::Matrix3d> tracker_base2robot_base_;
