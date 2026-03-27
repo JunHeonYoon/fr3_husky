@@ -151,6 +151,9 @@ void ViveTracker::onStart()
     is_initialize_mode_on_ = false;
     is_gripper_mode_on_.assign(NUM_CONTROLLERS, false);
     mobile_mode_ = 0;
+    world2mobi_base_frozen_ = fr3_husky_model_updater_.robot_data_->getPose("base_link");
+    control_start_time_ = -1.0; // sentinel: set on first compute() call
+    q_init_for_home_ = fr3_husky_model_updater_.q_total_;
 
     ee_data_.clear();
     if(!left_controller_ee_name_.empty())
@@ -177,7 +180,7 @@ void ViveTracker::onStart()
     RCLCPP_INFO(node_->get_logger(), "[%s] started", name_.c_str());
 }
 
-ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
+ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& time, const rclcpp::Duration& /*period*/)
 {
     for(auto& [ee_name, ee_data] : ee_data_)
     {
@@ -315,6 +318,9 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             {
                 RCLCPP_INFO(node_->get_logger(), "[%s] lhand joy released → Mobile stop", name_.c_str());
                 mobile_mode_ = 0;
+                world2mobi_base_frozen_ = fr3_husky_model_updater_.robot_data_->getPose("base_link");
+                control_start_time_ = time.seconds();
+                q_init_for_home_ = fr3_husky_model_updater_.q_total_;
                 for(auto& [ee_name, ee_data] : ee_data_) { ee_data.setInit(); ee_data.setDesired(); }
             }
             else if(!prev_button_states_[IDX_RIGHT_CON][IDX_JOY_BUTTON] && button_states_local[IDX_RIGHT_CON][IDX_JOY_BUTTON])
@@ -329,6 +335,9 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             {
                 RCLCPP_INFO(node_->get_logger(), "[%s] rhand joy released → Mobile stop", name_.c_str());
                 mobile_mode_ = 0;
+                world2mobi_base_frozen_ = fr3_husky_model_updater_.robot_data_->getPose("base_link");
+                control_start_time_ = time.seconds();
+                q_init_for_home_ = fr3_husky_model_updater_.q_total_;
                 for(auto& [ee_name, ee_data] : ee_data_) { ee_data.setInit(); ee_data.setDesired(); }
             }
             else if(!prev_button_states_[IDX_LEFT_CON][IDX_JOY_BUTTON] && button_states_local[IDX_LEFT_CON][IDX_JOY_BUTTON])
@@ -378,8 +387,14 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             if(!is_mouse_mode_on_[i] && button_states_local[i][IDX_GRIP_BUTTON]) // activate mouse mode when "grip" button pressed
             {
                 RCLCPP_INFO(node_->get_logger(), "[%s] %s Mouse Mode activated!", name_.c_str(), (i==0)?"Left":"Right");
+
+                // Freeze base only when neither controller was active before (first grip)
+                const bool other_was_active = is_mouse_mode_on_[1 - i];
+                if(!other_was_active)
+                    world2mobi_base_frozen_ = fr3_husky_model_updater_.robot_data_->getPose("base_link");
+
                 is_mouse_mode_on_[i] = true;
-    
+
                 controller_poses_init_[i] = controller_poses_local[i];
                 if(i == 0 && !left_controller_ee_name_.empty())       ee_data_[left_controller_ee_name_].setInit();
                 else if(i == 1 && !right_controller_ee_name_.empty()) ee_data_[right_controller_ee_name_].setInit();
@@ -395,12 +410,9 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
             }
         }
     
-        const std::string mobile_base_name = "base_link";
-        const Eigen::Affine3d world2mobi_base = fr3_husky_model_updater_.robot_data_->getPose(mobile_base_name);
-        
         if(!left_controller_ee_name_.empty()) // left vive controller
         {
-            const Eigen::Affine3d mobi_base2ee_init = world2mobi_base.inverse() * ee_data_[left_controller_ee_name_].x_init;
+            const Eigen::Affine3d mobi_base2ee_init = world2mobi_base_frozen_.inverse() * ee_data_[left_controller_ee_name_].x_init;
 
             Eigen::Affine3d mobi_base2ee_des = mobi_base2ee_init; // EE desired pose in base_link frame
             Eigen::Vector6d target_vel;
@@ -430,13 +442,13 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
                 }
             }
 
-            ee_data_[left_controller_ee_name_].x_desired = world2mobi_base * mobi_base2ee_des;
+            ee_data_[left_controller_ee_name_].x_desired = world2mobi_base_frozen_ * mobi_base2ee_des;
             ee_data_[left_controller_ee_name_].xdot_desired  = target_vel;
         }
 
         if(!right_controller_ee_name_.empty()) // right vive controller
         {
-            const Eigen::Affine3d mobi_base2ee_init = world2mobi_base.inverse() * ee_data_[right_controller_ee_name_].x_init;
+            const Eigen::Affine3d mobi_base2ee_init = world2mobi_base_frozen_.inverse() * ee_data_[right_controller_ee_name_].x_init;
 
             Eigen::Affine3d mobi_base2ee_des = mobi_base2ee_init; // EE desired pose in base_link frame
             Eigen::Vector6d target_vel;
@@ -466,18 +478,61 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
                 }
             }
 
-            ee_data_[right_controller_ee_name_].x_desired = world2mobi_base * mobi_base2ee_des;
+            ee_data_[right_controller_ee_name_].x_desired = world2mobi_base_frozen_ * mobi_base2ee_des;
             ee_data_[right_controller_ee_name_].xdot_desired  = target_vel;
         }
     
+        // Initialise control_start_time_ on the very first compute() call after onStart()
+        if(control_start_time_ < 0.0) control_start_time_ = time.seconds();
+
         bool is_qp_solved = true;
         std::string time_verbose = "";
         switch (control_mode_)
         {
             case 0: // CLIK
+            {
+                // --- Arm null_qdot: cubic toward HomePose ---
+                Eigen::VectorXd HomePose_total(model_updater_.manipulator_dof_);
+                for(size_t i = 0; i < model_updater_.num_robots_; ++i)
+                    HomePose_total.segment(FR3_DOF*i, FR3_DOF) = HomePose;
+
+                static constexpr double null_space_duration = 5.0;
+                const Eigen::VectorXd zeros_mani = Eigen::VectorXd::Zero(model_updater_.manipulator_dof_);
+                const Eigen::VectorXd null_qdot_mani =
+                    fr3_husky_model_updater_.robot_controller_->moveManipulatorJointVelocityCubic(
+                        HomePose_total, zeros_mani,
+                        q_init_for_home_,  zeros_mani,
+                        time.seconds(), control_start_time_, null_space_duration);
+
+                // --- Mobile null_qdot: drive mobile toward EE target (compensates for arm homing) ---
+                // As arm is pulled toward home by null space, EE error grows → mobile drives to fill the gap
+                Eigen::Vector3d avg_ee_pos_error = Eigen::Vector3d::Zero();
+                int ee_count = 0;
+                for(const auto& [ee_name, ee_data] : ee_data_)
+                {
+                    avg_ee_pos_error += ee_data.x_desired.translation() - ee_data.x.translation();
+                    ++ee_count;
+                }
+                if(ee_count > 0) avg_ee_pos_error /= ee_count;
+
+                const Eigen::Affine3d world2base_cur = fr3_husky_model_updater_.robot_data_->getPose("base_link");
+                const Eigen::Vector3d ee_error_base = world2base_cur.linear().transpose() * avg_ee_pos_error;
+                static constexpr double mobile_null_gain = 10.0; // [wheel_vel/m]: tune as needed
+                Eigen::Vector3d base_vel_null;
+                base_vel_null << ee_error_base(0), 0.0, 0.0; // Husky cannot strafe (y=0)
+                const Eigen::VectorXd null_qdot_mobile =
+                    fr3_husky_model_updater_.robot_controller_->MobileVelocityCommand(mobile_null_gain * base_vel_null);
+
+                // --- Assemble null_qdot via ActuatorIndex ---
+                Eigen::VectorXd null_qdot(fr3_husky_model_updater_.robot_data_->getActuatorDof());
+                const auto& act_idx = fr3_husky_model_updater_.robot_data_->getActuatorIndex();
+                null_qdot.segment(act_idx.mobi_start, fr3_husky_model_updater_.mobile_dof_) = null_qdot_mobile;
+                null_qdot.segment(act_idx.mani_start, model_updater_.manipulator_dof_)      = null_qdot_mani;
+
                 fr3_husky_model_updater_.robot_controller_->CLIKStep(ee_data_,
                                                                      fr3_husky_model_updater_.wheel_vel_desired_,
-                                                                     fr3_husky_model_updater_.qdot_desired_total_);
+                                                                     fr3_husky_model_updater_.qdot_desired_total_,
+                                                                     null_qdot);
                 fr3_husky_model_updater_.q_desired_total_ = fr3_husky_model_updater_.q_total_ +
                                                             fr3_husky_model_updater_.dt_ * fr3_husky_model_updater_.qdot_desired_total_;
                 fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_controller_->moveManipulatorJointTorqueStep(
@@ -485,12 +540,32 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
                                                                     fr3_husky_model_updater_.qdot_desired_total_,
                                                                     false);
                 break;
+            }
             case 1: // OSF
             {
+                // Build HomePose target for null space (per robot)
+                Eigen::VectorXd HomePose_total(model_updater_.manipulator_dof_);
+                for(size_t i = 0; i < model_updater_.num_robots_; ++i) HomePose_total.segment(FR3_DOF*i, FR3_DOF) = HomePose;
+                Eigen::VectorXd null_torque(fr3_husky_model_updater_.robot_data_->getActuatorDof());
+                null_torque.segment(fr3_husky_model_updater_.robot_data_->getActuatorIndex().mani_start, model_updater_.manipulator_dof_) = 
+                    fr3_husky_model_updater_.robot_controller_->moveManipulatorJointTorqueCubic(HomePose_total,
+                                                                                        Eigen::VectorXd::Zero(model_updater_.manipulator_dof_),
+                                                                                        q_init_for_home_,
+                                                                                        Eigen::VectorXd::Zero(model_updater_.manipulator_dof_),
+                                                                                        time.seconds(),
+                                                                                        control_start_time_,
+                                                                                        3.0);
+                // Null-space viscous damping: -kd * wheel_vel_ dissipates kinetic energy of the base
+                static constexpr double mobile_null_damping = 10.0; // [N·m·s/rad]: tune as needed
+                null_torque.segment(fr3_husky_model_updater_.robot_data_->getActuatorIndex().mobi_start, fr3_husky_model_updater_.mobile_dof_) =
+                    -mobile_null_damping * fr3_husky_model_updater_.wheel_vel_;
+
+
                 Eigen::VectorXd wheel_acc_desired = Eigen::VectorXd::Zero(fr3_husky_model_updater_.mobile_dof_);
                 fr3_husky_model_updater_.robot_controller_->OSFStep(ee_data_,
                                                                     wheel_acc_desired,
-                                                                    fr3_husky_model_updater_.torque_desired_total_);
+                                                                    fr3_husky_model_updater_.torque_desired_total_,
+                                                                    null_torque);
                 fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.wheel_vel_ + wheel_acc_desired * fr3_husky_model_updater_.dt_;
                 break;
             }
