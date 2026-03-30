@@ -6,6 +6,8 @@
     <xacro:include filename="$(find fr3_husky_description)/robots/box_base.xacro"/>
     <xacro:include filename="$(find fr3_husky_description)/robots/husky_base.xacro"/>
 
+    <xacro:include filename="$(find fr3_husky_description)/robots/realsense_d435i.urdf.xacro"/>
+
     <!-- ============================================================= -->
     <!-- Which arm: left or right -->
     <xacro:arg name="side" default="left"/>
@@ -84,6 +86,25 @@
         <parent link="base"/>
         <child link="tmp_base"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <!-- Load ee->camera TF calibration depending on which arm side -->
+    <xacro:property name="ee2cam_tf"
+        value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_$(arg side).yaml')}"/>
+
+    <xacro:realsense_d435i is_reverse="true" prefix="${arm_prefix}"/>
+
+    <joint name="${arm_prefix}_ee2d435i" type="fixed">
+        <xacro:if value="$(arg hand)">
+            <parent link="${arm_prefix}_fr3_hand"/>
+        </xacro:if>
+        <xacro:unless value="$(arg hand)">
+            <parent link="${arm_prefix}_fr3_link8"/>
+        </xacro:unless>
+        <child link="${arm_prefix}_d435i_color_optical_frame"/>
+        <origin
+            xyz="${ee2cam_tf['translation'][0]} ${ee2cam_tf['translation'][1]} ${ee2cam_tf['translation'][2]}"
+            rpy="${ee2cam_tf['euler_zyx'][0]} ${ee2cam_tf['euler_zyx'][1]} ${ee2cam_tf['euler_zyx'][2]}"/>
     </joint>
 
 </robot>

@@ -3,7 +3,7 @@ project(fr3_husky_description)
 find_package(ament_cmake REQUIRED)
 
 install(DIRECTORY
-    launch robots meshes rviz mjcf
+    launch robots meshes rviz mjcf config
     DESTINATION share/${PROJECT_NAME}/
 )
 
