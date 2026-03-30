@@ -474,7 +474,10 @@ void ViveTracker::subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr
             position = dyros_math::lowPassFilter(position, controller_poses_[i].translation(), 0.001, 0.002);
             Eigen::Quaterniond quaternion(msg->poses[i].orientation.w, msg->poses[i].orientation.x, msg->poses[i].orientation.y, msg->poses[i].orientation.z);
             quaternion.normalize();
-            Eigen::Matrix3d orientation = quaternion.toRotationMatrix();
+            Eigen::Quaterniond prev_quat(controller_poses_[i].linear());
+            constexpr double alpha = 0.001 / (0.001 + 0.002);
+            Eigen::Quaterniond filtered_quat = prev_quat.slerp(alpha, quaternion);
+            Eigen::Matrix3d orientation = filtered_quat.toRotationMatrix();
             {
                 std::lock_guard<std::mutex> lock(tracker_pose_mutex_);
                 controller_poses_[i].translation() = position;
