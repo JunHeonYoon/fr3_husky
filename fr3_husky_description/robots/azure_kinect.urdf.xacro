@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+
+<robot name="azure_kinect" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="azure_kinect" params="is_reverse:=false prefix=''">
+        <xacro:property name="cam_prefix" value="${'' if prefix=='' else prefix + '_'}"/> 
+        <link name="${cam_prefix}azure_base">
+            <visual>
+            <origin rpy="1.5708 0 1.5708" xyz="-0.0259 0 0"/>
+            <geometry>
+                <mesh filename="package://fr3_husky_description/meshes/Azure_Kinect_DK.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="grey">
+                <color rgba="0.6 0.6 0.6 1" />
+            </material>
+            </visual>
+        </link>
+
+        <link name="${cam_prefix}azure_depth_link"/>
+        <link name="${cam_prefix}azure_imu_link"/>
+        <link name="${cam_prefix}azure_rgb_link"/>
+
+        <xacro:unless value="${is_reverse}">
+            <joint name="${cam_prefix}azure_base2depth_joint" type="fixed">
+            <parent link="${cam_prefix}azure_base"/>
+            <child link="${cam_prefix}azure_depth_link"/>
+            <origin rpy="-1.6755133 0.0000028 -1.5707995" xyz="0 0 0.0018"/>
+            </joint>
+
+            <joint name="${cam_prefix}azure_depth2imu_joint" type="fixed">
+            <parent link="${cam_prefix}azure_depth_link"/>
+            <child link="${cam_prefix}azure_imu_link"/>
+            <origin rpy="-0.0014611 1.4592022 1.5710739" xyz="0.00346563 0.00415245 -0.0507355"/>
+            </joint>
+
+            <joint name="${cam_prefix}azure_depth2rgb_joint" type="fixed">
+            <parent link="${cam_prefix}azure_depth_link"/>
+            <child link="${cam_prefix}azure_rgb_link"/>
+            <origin rpy="0.1027897 0.0048339 0.0004876" xyz="0.0320149 0.00252428 -0.00366382"/>
+            </joint>
+        </xacro:unless>
+
+        <xacro:if value="${is_reverse}">
+            <joint name="${cam_prefix}azure_rgb2depth_joint" type="fixed">
+            <parent link="${cam_prefix}azure_rgb_link"/>
+            <child link="${cam_prefix}azure_depth_link"/>
+            <origin rpy="-0.102789 -0.004858 0.000011" xyz="-0.032033 -0.002135 0.003748"/>
+            </joint>
+
+            <joint name="${cam_prefix}azure_depth2imu_joint" type="fixed">
+            <parent link="${cam_prefix}azure_depth_link"/>
+            <child link="${cam_prefix}azure_imu_link"/>
+            <origin rpy="-0.0014611 1.4592022 1.5710739" xyz="0.00346563 0.00415245 -0.0507355"/>
+            </joint>
+
+            <joint name="${cam_prefix}azure_depth2cam_joint" type="fixed">
+            <parent link="${cam_prefix}azure_depth_link"/>
+            <child link="${cam_prefix}azure_base"/>
+            <origin rpy="-3.141565 -1.466079 -1.570827" xyz="0 0.001790 0.000188"/>
+            </joint>
+        </xacro:if>
+    </xacro:macro>
+</robot>

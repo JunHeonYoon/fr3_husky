@@ -3,6 +3,7 @@
     <xacro:include filename="$(find franka_description)/robots/common/franka_robot.xacro"/>
     <xacro:include filename="$(find husky_description)/urdf/husky_macro.urdf.xacro" />
     <xacro:include filename="$(find fr3_husky_description)/robots/realsense_d435i.urdf.xacro"/>
+    <xacro:include filename="$(find fr3_husky_description)/robots/azure_kinect.urdf.xacro"/>
 
     <!-- ============================================================= -->
     <!-- Which arm: left or right -->
@@ -168,6 +169,19 @@
         <origin rpy="0 0 0" xyz="0.36 0.0 0.27"/>
     </joint>
 
+    <!-- Load base->camera TF calibration -->
+    <xacro:property name="base2cam_tf"  value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_base2cam.yaml')}"/>
+    <xacro:azure_kinect is_reverse="true" prefix="top"/>
+
+    <joint name="base2top_cam" type="fixed">
+        <parent link="base_link"/>
+        <child link="top_azure_rgb_link"/>
+        <origin
+            xyz="${base2cam_tf['translation'][0]} ${base2cam_tf['translation'][1]} ${base2cam_tf['translation'][2]}"
+            rpy="${base2cam_tf['euler_zyx'][0]}   ${base2cam_tf['euler_zyx'][1]}   ${base2cam_tf['euler_zyx'][2]}"/>
+    </joint>
+
+    
     <!-- Load ee→camera TF calibration depending on which arm side -->
     <xacro:property name="ee2cam_tf"
         value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_$(arg side).yaml')}"/>
