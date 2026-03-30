@@ -84,6 +84,7 @@ private:
     // robot data
     std::vector<Eigen::Matrix3d> tracker_base2robot_base_;
     std::map<std::string, drc::TaskSpaceData> ee_data_;
+    bool has_mobile_{false};
 
     // action goal data
     int control_mode_;                     // 0: CLIK, 1: OSF, 2:QPIK, 3:QPID

@@ -45,6 +45,15 @@ ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpda
 
     ee_data_.clear();
 
+    for(const auto& frame : fr3_model_updater_.robot_data_->getLinkFrameVector())
+    {
+        if (frame.find("wheel") != std::string::npos) 
+        {
+            has_mobile_ = true;
+            break;
+        }
+    }
+
     // Action clients
     move_to_joint_client_ = rclcpp_action::create_client<MoveToJointAction>(node_, "fr3_move_to_joint");
     vt_self_client_       = rclcpp_action::create_client<ActionT>(node_, name_);
@@ -208,6 +217,11 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, co
                     {
                         mtj_goal.joint_names.push_back(robot_name + "_" + model_updater_.arm_id_ + "_joint" + std::to_string(j+1));
                         mtj_goal.target_positions.push_back(HomePose(j));
+                        if(model_updater_.num_robots_ == 2 && has_mobile_ &&  j == 0)
+                        {
+                            if(robot_name.find("left")  != std::string::npos) mtj_goal.target_positions.back() -= M_PI / 6;
+                            if(robot_name.find("right") != std::string::npos) mtj_goal.target_positions.back() += M_PI / 6;
+                        }
                     }
                 }
                 mtj_goal.max_velocity_scaling_factor     = 0.1;
