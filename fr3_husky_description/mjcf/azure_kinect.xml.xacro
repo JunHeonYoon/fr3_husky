@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <!--
+        MuJoCo MJCF macro for Microsoft Azure Kinect DK
+        Mirrors the URDF azure_kinect.urdf.xacro (is_reverse=true mode).
+
+        Usage (inside base_link body via husky additional_comp):
+            <xacro:azure_kinect_mjcf prefix="top" base2cam_tf="${base2cam_tf}"
+                color_width="1920" color_height="1080"
+                depth_width="640"  depth_height="576"/>
+
+        base2cam_tf: dict loaded from TF_base2cam.yaml
+            translation: [x, y, z]   — mobile_base (= base_link) → azure_rgb_link
+            quaternion:  [x, y, z, w] — ROS convention → converted to MuJoCo [w,x,y,z]
+
+        Camera intrinsics (Azure Kinect DK official / dyros menagerie specs):
+            Color base: fx=623.012, fy=625.574 px  at 1920×1080 (by camera intrinsic calibration)
+            Depth NFOV: fx=fy=504.0 px          at 640×576    (NFOV unbinned)
+            Scale rule: fx_new = fx_base * W_new / W_base  (same for fy / height)
+            principalpixel="0 0" → MuJoCo default = image centre
+            sensorsize="1 1" with focalpixel keeps the projection defined by
+            pixel intrinsics and image resolution, so fovy must be omitted.
+
+        Mesh assets required in parent scene's <asset> section:
+            mesh name="azure_kinect_dk"  (Azure_Kinect_DK.stl, scale 0.001)
+            material name="azure_gray"
+
+        Body hierarchy (mirrors is_reverse URDF chain):
+            azure_rgb_link          ← calibrated pos/quat from base2cam YAML
+              ├─ <camera> color     ← RGB rendering
+              ├─ azure_depth_link   ← pos/quat from URDF azure_rgb2depth_joint
+              │    └─ <camera> depth
+              └─ azure_kinect_link  ← housing body for mesh, posed from URDF
+                   azure_depth2cam_joint + visual origin
+    -->
+
+    <xacro:macro name="azure_kinect_mjcf"
+                 params="prefix base2cam_tf
+                         color_width:=1920  color_height:=1080
+                         depth_width:=640   depth_height:=576">
+
+        <!-- quaternion in YAML is [x, y, z, w] (ROS); MuJoCo wants [w, x, y, z] -->
+        <xacro:property name="qx" value="${base2cam_tf['quaternion'][0]}"/>
+        <xacro:property name="qy" value="${base2cam_tf['quaternion'][1]}"/>
+        <xacro:property name="qz" value="${base2cam_tf['quaternion'][2]}"/>
+        <xacro:property name="qw" value="${base2cam_tf['quaternion'][3]}"/>
+        <xacro:property name="tx" value="${base2cam_tf['translation'][0]}"/>
+        <xacro:property name="ty" value="${base2cam_tf['translation'][1]}"/>
+        <xacro:property name="tz" value="${base2cam_tf['translation'][2]}"/>
+
+        <!--
+            Azure Kinect DK manufacturer base intrinsics:
+              Color: fx=623.012, fy=625.574 px  at 1920×1080 (by camera intrinsic calibration)
+              Depth: fx=fy=504.0 px          at 640×576    (NFOV unbinned mode)
+            Scaled to requested resolution via: fx_new = fx_base * W_new / W_base
+        -->
+        <xacro:property name="azure_color_fx_base" value="623.012"/>
+        <xacro:property name="azure_color_fy_base" value="625.574"/>
+        <xacro:property name="azure_color_w_base"  value="${1920.0}"/>
+        <xacro:property name="azure_color_h_base"  value="${1080.0}"/>
+
+        <xacro:property name="azure_depth_fx_base" value="504.0"/>
+        <xacro:property name="azure_depth_fy_base" value="504.0"/>
+        <xacro:property name="azure_depth_w_base"  value="${640.0}"/>
+        <xacro:property name="azure_depth_h_base"  value="${576.0}"/>
+
+        <!-- Scaled focal lengths -->
+        <xacro:property name="fx_c" value="${azure_color_fx_base * float(color_width)  / azure_color_w_base}"/>
+        <xacro:property name="fy_c" value="${azure_color_fy_base * float(color_height) / azure_color_h_base}"/>
+        <xacro:property name="fx_d" value="${azure_depth_fx_base * float(depth_width)  / azure_depth_w_base}"/>
+        <xacro:property name="fy_d" value="${azure_depth_fy_base * float(depth_height) / azure_depth_h_base}"/>
+
+        <!--
+            azure_rgb_link body.
+            Parent = base_link (= mobile_base in URDF).
+            pos/quat = TF from mobile_base to azure_rgb_link (is_reverse=true).
+        -->
+        <body name="${prefix}_azure_rgb_link"
+              pos="${tx} ${ty} ${tz}"
+              quat="${qw} ${qx} ${qy} ${qz}">
+
+            <!-- RGB camera.
+                 euler="${pi} 0 0": π rotation around body-X axis (radians).
+                 Matches dyros menagerie azure_rgb: quat="0 1 0 0" = 180° around X.
+                 focalpixel and resolution encode manufacturer intrinsics. -->
+            <camera name="${prefix}_azure_color"
+                    resolution="${color_width} ${color_height}"
+                    sensorsize="1 1"
+                    focalpixel="${fx_c} ${fy_c}"
+                    euler="${pi} 0 0"/>
+
+            <!--
+                azure_depth_link body.
+                From URDF is_reverse azure_rgb2depth_joint:
+                  xyz="-0.032033 -0.002135 0.003748"
+                  rpy="-0.102789 -0.004858 0.000011"  (already in radians)
+                MuJoCo euler is XYZ extrinsic (same as URDF rpy), angle="radian".
+            -->
+            <body name="${prefix}_azure_depth_link"
+                  pos="-0.032033 -0.002135 0.003748"
+                  euler="-0.102789 -0.004858 0.000011">
+                <camera name="${prefix}_azure_depth"
+                        resolution="${depth_width} ${depth_height}"
+                        sensorsize="1 1"
+                        focalpixel="${fx_d} ${fy_d}"
+                        euler="${pi} 0 0"/>
+            </body>
+
+            <!--
+                azure_kinect_link body (housing for mesh).
+                From URDF is_reverse chain:
+                  azure_rgb2depth_joint:
+                    xyz="-0.032033 -0.002135 0.003748"
+                    rpy="-0.102789 -0.004858 0.000011"
+                  azure_depth2cam_joint:
+                    xyz="0 0.001790 0.000188"
+                    rpy="-3.141565 -1.466079 -1.570827"
+                Combined rgb_link -> azure_base:
+                  pos="-0.032033036 -0.000335158 0.003751339"
+                  quat="0.498297698 0.499268290 -0.501692468 0.500734706"
+                Visual origin on azure_base:
+                  pos="-0.0259 0 0"
+                  quat="0.499998163 0.500000000 0.500001837 0.500000000"
+            -->
+            <body name="${prefix}_azure_kinect_link"
+                  pos="-0.032033036 -0.000335158 0.003751339"
+                  quat="0.498297698 0.499268290 -0.501692468 0.500734706">
+                <geom type="mesh" mesh="azure_kinect_dk" mass="0"
+                      pos="-0.0259 0 0"
+                      quat="0.499998163 0.500000000 0.500001837 0.500000000"
+                      material="azure_gray"
+                      class="visual"/>
+            </body>
+
+        </body> <!-- azure_rgb_link -->
+
+    </xacro:macro>
+
+</mujoco>

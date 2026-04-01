@@ -99,33 +99,33 @@
       dyros_robot_controller:
         manipulator_joint_gains:
           kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
-          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 20.0, 15.0, 8.0]
         task_gains:
           ik:
-            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+            kp: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
           id:
             kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
-            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+            kv: [40.0, 40.0, 40.0, 50.0, 50.0, 50.0]
         QPIK_weight:
           tracking:
             weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
-          joint: 
+          joint:
             velocity:
               manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
               mobile: [0.1, 0.1, 0.1]
             acceleration:
-              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
+              manipulator: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
               mobile: [0.1, 0.1, 0.1]
         QPID_weight:
           tracking:
-            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
-          joint: 
+            weights: [15.0, 15.0, 15.0, 15.0, 15.0, 15.0]
+          joint:
             velocity:
               manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-              mobile: [0.0, 0.0, 0.0]
+              mobile: [0.1, 0.1, 0.1]
             acceleration:
-              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
-              mobile: [0.0, 0.0, 0.0]
+              manipulator: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+              mobile: [0.1, 0.1, 0.1]
 
   right_fr3_husky_action_controller:
     ros__parameters:
@@ -152,10 +152,10 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512 #0.1  # 0.256  # 0.512
-      wheel_radius: 0.147 #0.1651 # 0.015
+      wheel_separation: 0.5708 
+      wheel_radius: 0.1651 # 0.147
       wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      wheel_radius_multiplier: 1.0 # 0.5271
       
       odom_frame_id: odom
       base_frame_id: base_link
@@ -176,34 +176,34 @@
       dyros_robot_controller:
         manipulator_joint_gains:
           kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
-          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 20.0, 15.0, 8.0]
         task_gains:
           ik:
-            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+            kp: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
           id:
             kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
-            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+            kv: [40.0, 40.0, 40.0, 50.0, 50.0, 50.0]
         QPIK_weight:
           tracking:
             weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
-          joint: 
+          joint:
             velocity:
               manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
               mobile: [0.1, 0.1, 0.1]
             acceleration:
-              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
+              manipulator: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
               mobile: [0.1, 0.1, 0.1]
         QPID_weight:
           tracking:
-            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
-          joint: 
+            weights: [15.0, 15.0, 15.0, 15.0, 15.0, 15.0]
+          joint:
             velocity:
               manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
               mobile: [0.1, 0.1, 0.1]
             acceleration:
-              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+              manipulator: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
               mobile: [0.1, 0.1, 0.1]
-  
+
   dual_fr3_husky_action_controller:
     ros__parameters:
       update_rate: 1000  # Hz
@@ -236,10 +236,10 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512 #0.1  # 0.256  # 0.512
-      wheel_radius: 0.147 #0.1651 # 0.015
+      wheel_separation: 0.5708 
+      wheel_radius: 0.1651 # 0.147
       wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      wheel_radius_multiplier: 1.0 # 0.5271
       
       odom_frame_id: odom
       base_frame_id: base_link
@@ -261,37 +261,37 @@
         manipulator_joint_gains:
           kp: [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0,
                600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]
-          kv: [30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0,
-               30.0, 30.0, 30.0, 30.0, 10.0, 10.0, 5.0]
+          kv: [30.0, 30.0, 30.0, 30.0, 20.0, 15.0, 8.0,
+               30.0, 30.0, 30.0, 30.0, 20.0, 15.0, 8.0]
         task_gains:
           ik:
-            kp: [10.0, 10.0, 10.0, 30.0, 30.0, 30.0]
+            kp: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
           id:
             kp: [600.0, 600.0, 600.0, 1000.0, 1000.0, 1000.0]
-            kv: [20.0, 20.0, 20.0, 30.0, 30.0, 30.0]
+            kv: [40.0, 40.0, 40.0, 50.0, 50.0, 50.0]
         QPIK_weight:
           tracking:
             weights: [10.0, 10.0, 10.0, 40.0, 40.0, 40.0]
-          joint: 
-            velocity:
-              manipulator: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-                            0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-              mobile: [0.1, 0.1, 0.1]
-            acceleration:
-              manipulator: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001,
-                            0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
-              mobile: [0.1, 0.1, 0.1]
-        QPID_weight:
-          tracking:
-            weights: [10.0, 10.0, 10.0, 1.0, 1.0, 1.0]
-          joint: 
+          joint:
             velocity:
               manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
                             0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
               mobile: [0.1, 0.1, 0.1]
             acceleration:
-              manipulator: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
-                            5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+              manipulator: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
+                            0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+              mobile: [0.1, 0.1, 0.1]
+        QPID_weight:
+          tracking:
+            weights: [15.0, 15.0, 15.0, 15.0, 15.0, 15.0]
+          joint:
+            velocity:
+              manipulator: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+              mobile: [0.1, 0.1, 0.1]
+            acceleration:
+              manipulator: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
               mobile: [0.1, 0.1, 0.1]
 
   left_test_fr3_husky_controller:
@@ -364,10 +364,10 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512
-      wheel_radius: 0.147
+      wheel_separation: 0.5708 
+      wheel_radius: 0.1651 # 0.147
       wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      wheel_radius_multiplier: 1.0 # 0.5271
 
       odom_frame_id: odom
       base_frame_id: base_link

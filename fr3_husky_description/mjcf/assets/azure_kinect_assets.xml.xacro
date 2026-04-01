@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="azure_kinect_assets" params="">
+        <mesh name="azure_kinect_dk" file="$(find fr3_husky_description)/meshes/Azure_Kinect_DK.stl" scale="0.001 0.001 0.001"/>
+        <material name="azure_gray" rgba="0.3 0.3 0.3 1"/>
+    </xacro:macro>
+</mujoco>

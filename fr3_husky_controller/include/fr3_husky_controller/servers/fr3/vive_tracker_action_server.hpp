@@ -16,7 +16,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
-#include <std_msgs/msg/int32_multi_array.hpp>
+#include <sensor_msgs/msg/joy.hpp>
 
 #define NUM_TRACKERS    3 // left, right, head
 #define NUM_CONTROLLERS 2 // left, right (only Focus3 controllers)
@@ -24,11 +24,12 @@
 #define IDX_RIGHT_CON   1 // index of right controller pose in "tracker_pose" topic
 #define IDX_HEAD_CON    2 // index of HMD head pose in "tracker_pose" topic
 
-#define NUM_BUTTONS        4 // number of buttons in Focu3 controller [trigger, grip, a, b]
-#define IDX_TRIGGER_BUTTON 0 // index of Trigger button in "l/rhand_button" topic
-#define IDX_GRIP_BUTTON    1 // index of Trigger button in "l/rhand_button" topic
-#define IDX_A_BUTTON       2 // index of Trigger button in "l/rhand_button" topic
-#define IDX_B_BUTTON       3 // index of Trigger button in "l/rhand_button" topic
+#define NUM_BUTTONS        5 // number of buttons in Focu3 controller [trigger, grip, a, b, joy]
+#define IDX_TRIGGER_BUTTON 0 // index of Trigger button in "l/rhand_joy" topic
+#define IDX_GRIP_BUTTON    1 // index of Grip button in "l/rhand_joy" topic
+#define IDX_A_BUTTON       2 // index of A button in "l/rhand_joy" topic
+#define IDX_B_BUTTON       3 // index of B button in "l/rhand_joy" topic
+#define IDX_JOY_BUTTON     4 // index of Joy button in "l/rhand_joy" topic
 
 namespace fr3_husky_controller::servers::fr3
 {
@@ -62,17 +63,17 @@ private:
 private:
     // publishers & subscribers
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr  pose_sub_;
-    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr l_button_state_sub_; // off: 0 | on: 1, button idx:[trigger, grip, a, b]
-    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr r_button_state_sub_; // off: 0 | on: 1, button idx:[trigger, grip, a, b]
+    rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr l_joy_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr r_joy_sub_;
 
     void subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
-    void subLButtonCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
-    void subRButtonCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
+    void subLJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
+    void subRJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
 
     // vive controller state data
     std::vector<Eigen::Affine3d> controller_poses_;      // left, right, head
     std::vector<Eigen::Affine3d> controller_poses_init_; // left, right, head
-    std::vector<std::vector<bool>> button_states_;       // [left, right][trigger, grip, a, b]
+    std::vector<std::vector<bool>> button_states_;       // [left, right][trigger, grip, a, b, joy]
     std::vector<std::vector<bool>> prev_button_states_;  // previous button states for edge detection
 
     // states for ...
@@ -83,6 +84,7 @@ private:
     // robot data
     std::vector<Eigen::Matrix3d> tracker_base2robot_base_;
     std::map<std::string, drc::TaskSpaceData> ee_data_;
+    bool has_mobile_{false};
 
     // action goal data
     int control_mode_;                     // 0: CLIK, 1: OSF, 2:QPIK, 3:QPID

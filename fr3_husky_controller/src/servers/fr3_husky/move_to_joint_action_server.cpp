@@ -287,13 +287,32 @@ void MoveToJoint::runPlanning()
         return;
     }
 
-    // Forward trajectory to fr3_husky_joint_trajectory_controller
+    // Prepare handoff to fr3_husky_joint_trajectory_controller
     if (!jtc_client_->wait_for_action_server(std::chrono::seconds(5)))
     {
         std::lock_guard<std::mutex> lk(msg_mutex_);
         plan_error_msg_ = "fr3_husky_joint_trajectory_controller not available";
         RCLCPP_ERROR(node_->get_logger(), "[%s] %s", name_.c_str(), plan_error_msg_.c_str());
         plan_state_.store(PlanState::FAILED, std::memory_order_release);
+        return;
+    }
+
+    plan_state_.store(PlanState::READY, std::memory_order_release);
+
+    // Wait until MoveToJoint has fully finished before sending the lower-priority
+    // JTC goal. This avoids the controller consuming JTC's activate request while
+    // MoveToJoint is still the active_server_.
+    while (isActive() && !cancel_flag_.load(std::memory_order_relaxed))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    if (!handoff_requested_.load(std::memory_order_acquire) ||
+        cancel_flag_.load(std::memory_order_relaxed))
+    {
+        RCLCPP_INFO(node_->get_logger(),
+                    "[%s] skipping JTC handoff because the goal did not finish successfully",
+                    name_.c_str());
         return;
     }
 
@@ -307,25 +326,18 @@ void MoveToJoint::runPlanning()
             if (!gh)
             {
                 RCLCPP_ERROR(node_->get_logger(),
-                             "[%s] fr3_husky_joint_trajectory_controller rejected goal",
+                             "[%s] fr3_husky_joint_trajectory_controller rejected handoff goal",
                              name_.c_str());
-                std::lock_guard<std::mutex> lk(msg_mutex_);
-                plan_error_msg_ = "JTC rejected the trajectory goal";
-                plan_state_.store(PlanState::FAILED, std::memory_order_release);
             }
             else
             {
                 RCLCPP_INFO(node_->get_logger(),
-                            "[%s] trajectory sent to fr3_husky_joint_trajectory_controller",
+                            "[%s] trajectory handed off to fr3_husky_joint_trajectory_controller",
                             name_.c_str());
-                plan_state_.store(PlanState::DONE, std::memory_order_release);
             }
         };
 
     jtc_client_->async_send_goal(jtc_goal, send_opts);
-
-    for (int i = 0; i < 50 && plan_state_.load() == PlanState::PLANNING; ++i)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 // ============================================================
@@ -390,6 +402,7 @@ void MoveToJoint::onGoalAccepted(const ActionT::Goal& goal)
                       ? goal.max_acceleration_scaling_factor : 0.1;
 
     cancel_flag_.store(false, std::memory_order_relaxed);
+    handoff_requested_.store(false, std::memory_order_relaxed);
     plan_state_.store(PlanState::PLANNING, std::memory_order_relaxed);
     {
         std::lock_guard<std::mutex> lk(msg_mutex_);
@@ -466,13 +479,15 @@ MoveToJoint::ComputeResult MoveToJoint::compute(
         return ComputeResult::ABORTED;
     }
 
-    // DONE — trajectory sent to JTC; hand off
+    // READY — planning is done and the background thread is waiting to hand off
+    // the trajectory once this server is no longer active.
     auto fb = std::make_shared<ActionT::Feedback>();
     fb->state          = 1;
     fb->progress       = 0.1;
-    fb->status_message = "Trajectory sent to fr3_husky_joint_trajectory_controller";
+    fb->status_message = "Trajectory planned; handing off to fr3_husky_joint_trajectory_controller";
     publishFeedback(fb);
 
+    handoff_requested_.store(true, std::memory_order_release);
     result_error_code_ = 0;
     return ComputeResult::SUCCEEDED;
 }
@@ -483,7 +498,8 @@ MoveToJoint::ComputeResult MoveToJoint::compute(
 
 void MoveToJoint::onStop(StopReason reason)
 {
-    cancel_flag_.store(true, std::memory_order_relaxed);
+    if (reason != StopReason::SUCCEEDED)
+        cancel_flag_.store(true, std::memory_order_relaxed);
 
     if (reason != StopReason::SUCCEEDED)
         model_updater_.haltCommands();
@@ -500,8 +516,8 @@ MoveToJoint::ResultPtr MoveToJoint::makeResult(StopReason reason)
     if (reason == StopReason::SUCCEEDED)
     {
         result->success    = true;
-        result->message    = "Planning succeeded; trajectory sent to "
-                             "fr3_husky_joint_trajectory_controller";
+        result->message    = "Planning succeeded; trajectory ready for "
+                             "fr3_husky_joint_trajectory_controller handoff";
         result->error_code = 0;
     }
     else if (reason == StopReason::CANCELED)

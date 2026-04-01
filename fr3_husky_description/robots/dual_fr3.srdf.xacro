@@ -562,6 +562,9 @@
             <disable_collisions link1="left_fr3_hand_sc" link2="right_fr3_leftfinger" reason="User"/>
             <disable_collisions link1="left_fr3_hand_sc" link2="right_fr3_rightfinger" reason="User"/>
 
+            <!-- left hand sc - right hand sc -->
+            <disable_collisions link1="left_fr3_hand_sc" link2="right_fr3_hand_sc" reason="User"/>
+
             <!-- left hand - right link -->
             <disable_collisions link1="left_fr3_hand" link2="right_fr3_link0" reason="User"/>
             <disable_collisions link1="left_fr3_hand" link2="right_fr3_link1" reason="User"/>

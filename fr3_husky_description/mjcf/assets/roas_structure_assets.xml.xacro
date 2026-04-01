@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="roas_structure_assets" params="">
+        <mesh name="ROAS_structure_single" file="$(find fr3_husky_description)/meshes/ROAS_structure_single.stl"/>
+        <mesh name="ROAS_structure"        file="$(find fr3_husky_description)/meshes/ROAS_structure.stl"/>
+    </xacro:macro>
+</mujoco>

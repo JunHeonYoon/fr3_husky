@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <!--
+        MuJoCo MJCF macro for Intel RealSense D435i
+        Mirrors the URDF realsense_d435i.urdf.xacro (is_reverse=true mode).
+
+        Usage (inside hand body or link8 body via franka_robot cam_body block):
+            <xacro:realsense_d435i_mjcf prefix="${arm_prefix}" ee2cam_tf="${ee2cam_tf}"
+                color_width="640" color_height="480"
+                depth_width="848" depth_height="480"/>
+
+        ee2cam_tf: dict loaded from TF_ee2cam_<side>.yaml
+            translation: [x, y, z]   — parent-EE → color_optical_frame
+            quaternion:  [x, y, z, w] — ROS convention → converted to MuJoCo [w,x,y,z]
+
+        Camera intrinsics (Intel RealSense D435i official specs):
+            Color base: fx=fy=873.9 px  at 1280×720 (by camera intrinsic calibration)
+            Depth base: fx=fy=427.2 px  at 848×480
+            Scale rule: fx_new = fx_base * W_new / W_base  (same for fy / height)
+            principalpixel="0 0" → MuJoCo default = image centre
+            sensorsize="1 1" with focalpixel keeps the projection defined by
+            pixel intrinsics and image resolution, so fovy must be omitted.
+
+        Camera convention (compiler angle="radian"):
+            MuJoCo camera looks in -Z of its local frame.
+            euler="${pi} 0 ${pi}" keeps the camera looking in +Z of the
+            optical body while adding a 180° roll to correct the upside-down view.
+            Reference: dyros menagerie fr3_husky.xml uses quat="0 1 0 0" for azure
+            (same effect: 180° around X = [w=0,x=1,y=0,z=0]).
+
+        Mesh assets required in parent scene's <asset> section:
+            mesh name="d435i_0" .. "d435i_8"
+            material name="d435i_IR_Lens", "d435i_IR_Emitter_Lens", "d435i_IR_Rim",
+                         "d435i_Cameras_Gray", "d435i_Black_Acrylic",
+                         "d435i_Metal_Casing", "d435i_RGB_Pupil"
+
+        Body hierarchy (mirrors is_reverse URDF chain):
+            color_optical_frame   ← calibrated pos/quat from ee2cam YAML
+              ├─ <camera> color   ← RGB rendering
+              ├─ d435i_link       ← housing body; pos=[0.015,0,0], quat=[0.5,0.5,-0.5,0.5]
+              │    └─ mesh geoms  ← visual meshes, pos/quat from URDF visual origin
+              └─ depth_optical_frame ← pos=[0.015,0,0], quat=[1,0,0,0]
+                   └─ <camera> depth ← Depth rendering
+    -->
+
+    <xacro:macro name="realsense_d435i_mjcf"
+                 params="prefix ee2cam_tf
+                         color_width:=1280  color_height:=710
+                         depth_width:=848   depth_height:=480">
+
+        <!-- quaternion in YAML is [x, y, z, w] (ROS); MuJoCo wants [w, x, y, z] -->
+        <xacro:property name="qx" value="${ee2cam_tf['quaternion'][0]}"/>
+        <xacro:property name="qy" value="${ee2cam_tf['quaternion'][1]}"/>
+        <xacro:property name="qz" value="${ee2cam_tf['quaternion'][2]}"/>
+        <xacro:property name="qw" value="${ee2cam_tf['quaternion'][3]}"/>
+        <xacro:property name="tx" value="${ee2cam_tf['translation'][0]}"/>
+        <xacro:property name="ty" value="${ee2cam_tf['translation'][1]}"/>
+        <xacro:property name="tz" value="${ee2cam_tf['translation'][2]}"/>
+
+        <!--
+            D435i manufacturer base intrinsics (Intel official specs):
+              Color: fx = fy = 873.9 px  at 1280×720 (by camera intrinsic calibration)
+              Depth: fx = fy = 427.2 px  at 848×480
+            Scaled to requested resolution via: fx_new = fx_base * W_new / W_base
+        -->
+        <xacro:property name="d435i_color_fx_base" value="873.9"/>
+        <xacro:property name="d435i_color_fy_base" value="873.9"/>
+        <xacro:property name="d435i_color_w_base"  value="${1280.0}"/>
+        <xacro:property name="d435i_color_h_base"  value="${720.0}"/>
+
+        <xacro:property name="d435i_depth_fx_base" value="427.2"/>
+        <xacro:property name="d435i_depth_fy_base" value="427.2"/>
+        <xacro:property name="d435i_depth_w_base"  value="${848.0}"/>
+        <xacro:property name="d435i_depth_h_base"  value="${480.0}"/>
+
+        <!-- Scaled focal lengths -->
+        <xacro:property name="fx_c" value="${d435i_color_fx_base * float(color_width)  / d435i_color_w_base}"/>
+        <xacro:property name="fy_c" value="${d435i_color_fy_base * float(color_height) / d435i_color_h_base}"/>
+        <xacro:property name="fx_d" value="${d435i_depth_fx_base * float(depth_width)  / d435i_depth_w_base}"/>
+        <xacro:property name="fy_d" value="${d435i_depth_fy_base * float(depth_height) / d435i_depth_h_base}"/>
+
+        <!--
+            color_optical_frame body.
+            Parent = hand body (hand=true) or link8 body (hand=false).
+        -->
+        <body name="${prefix}_d435i_color_optical_frame"
+              pos="${tx} ${ty} ${tz}"
+              quat="${qw} ${qx} ${qy} ${qz}">
+
+            <!-- RGB camera.
+                 euler="${pi} 0 ${pi}": keep optical forward direction while
+                 adding a 180° roll so the rendered image is not upside down.
+                 focalpixel and resolution encode manufacturer intrinsics. -->
+            <camera name="${prefix}_d435i_color"
+                    resolution="${color_width} ${color_height}"
+                    sensorsize="1 1"
+                    focalpixel="${fx_c} ${fy_c}"
+                    euler="${pi} 0 ${pi}"/>
+
+            <!--
+                d435i_link body (= depth_frame body in is_reverse chain).
+                In color_optical_frame coords:
+                  pos  = [0.015, 0, 0]  (depth-color horizontal offset)
+                  quat = [0.5, 0.5, -0.5, 0.5]  (= color_frame orientation in optical frame)
+                Derived from URDF is_reverse chain:
+                  color_optical → (rpy "0 -π/2 π/2") → color_frame
+                  color_frame   → (y = -0.015)       → d435i_link
+            -->
+            <body name="${prefix}_d435i_link"
+                  pos="0.015 0 0"
+                  quat="0.5 0.5 -0.5 0.5">
+                <!-- URDF inertial values for d435i_link. -->
+                <inertial pos="0 0 0"
+                          mass="0.072"
+                          diaginertia="0.003881243 0.000498940 0.003879257"/>
+
+                <!-- Visual meshes.
+                     pos/quat from URDF d435i_link visual origin:
+                       xyz="${d435_zero_depth_to_glass+d435_glass_to_front} ${-d435_cam_depth_py} 0"
+                           = 0.0043  -0.0175  0
+                       quat = [0.5, 0.5, 0.5, 0.5] -->
+                <geom type="mesh" mesh="d435i_0" material="d435i_IR_Lens" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_1" material="d435i_IR_Emitter_Lens" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_2" material="d435i_IR_Rim" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_3" material="d435i_IR_Lens" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_4" material="d435i_Cameras_Gray" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_5" material="d435i_Black_Acrylic" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_6" material="d435i_Black_Acrylic" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_7" material="d435i_RGB_Pupil" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+                <geom type="mesh" mesh="d435i_8" material="d435i_Metal_Casing" mass="0"
+                      pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5" class="visual"/>
+
+            </body> <!-- d435i_link -->
+
+            <!--
+                depth_optical_frame body.
+                In MuJoCo, keep depth optical aligned with color optical so the
+                same camera euler makes both sensors look forward from the housing.
+                pos = [0.015, 0, 0]  (same position as d435i_link / depth_frame)
+            -->
+            <body name="${prefix}_d435i_depth_optical_frame"
+                  pos="0.015 0 0"
+                  quat="1 0 0 0">
+                <camera name="${prefix}_d435i_depth"
+                        resolution="${depth_width} ${depth_height}"
+                        sensorsize="1 1"
+                        focalpixel="${fx_d} ${fy_d}"
+                        euler="${pi} 0 ${pi}"/>
+            </body>
+
+        </body> <!-- color_optical_frame -->
+
+    </xacro:macro>
+
+</mujoco>
