@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="d435i_assets" params="">
+        <mesh name="d435i_0" file="$(find fr3_husky_description)/meshes/d435i_0.obj"/>
+        <mesh name="d435i_1" file="$(find fr3_husky_description)/meshes/d435i_1.obj"/>
+        <mesh name="d435i_2" file="$(find fr3_husky_description)/meshes/d435i_2.obj"/>
+        <mesh name="d435i_3" file="$(find fr3_husky_description)/meshes/d435i_3.obj"/>
+        <mesh name="d435i_4" file="$(find fr3_husky_description)/meshes/d435i_4.obj"/>
+        <mesh name="d435i_5" file="$(find fr3_husky_description)/meshes/d435i_5.obj"/>
+        <mesh name="d435i_6" file="$(find fr3_husky_description)/meshes/d435i_6.obj"/>
+        <mesh name="d435i_7" file="$(find fr3_husky_description)/meshes/d435i_7.obj"/>
+        <mesh name="d435i_8" file="$(find fr3_husky_description)/meshes/d435i_8.obj"/>
+
+        <material name="d435i_IR_Lens"         rgba="0.035601 0.035601 0.035601 1"/>
+        <material name="d435i_IR_Emitter_Lens" rgba="0.287440 0.665387 0.327778 1"/>
+        <material name="d435i_IR_Rim"          rgba="0.799102 0.806952 0.799103 1"/>
+        <material name="d435i_Cameras_Gray"    rgba="0.296138 0.296138 0.296138 1"/>
+        <material name="d435i_Black_Acrylic"   rgba="0.070360 0.070360 0.070360 1"/>
+        <material name="d435i_Metal_Casing"    rgba="1 1 1 1"/>
+        <material name="d435i_RGB_Pupil"       rgba="0.087140 0.002866 0.009346 1"/>
+    </xacro:macro>
+</mujoco>

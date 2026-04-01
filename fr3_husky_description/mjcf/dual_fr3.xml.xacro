@@ -9,10 +9,20 @@
     <xacro:include filename="$(find franka_description)/mjcf/end_effectors/common/franka_hand.xml.xacro" />
     <xacro:include filename="$(find franka_description)/mjcf/end_effectors/common/ee_with_one_link.xml.xacro" />
     <xacro:include filename="$(find franka_description)/mjcf/end_effectors/common/franka_hand_actuator.xml.xacro" />
+    <xacro:include filename="$(find franka_description)/mjcf/robots/fr3/assets.xml.xacro" />
+    <xacro:include filename="$(find franka_description)/mjcf/end_effectors/franka_hand/assets.xml.xacro" />
 
     <!-- base xacro includes -->
     <xacro:include filename="$(find husky_description)/mjcf/husky_macro.xml.xacro" />
+    <xacro:include filename="$(find husky_description)/mjcf/assets.xml.xacro" />
     <xacro:include filename="$(find fr3_husky_description)/mjcf/box_base.xml.xacro"/>
+    <xacro:include filename="$(find fr3_husky_description)/mjcf/assets/roas_structure_assets.xml.xacro"/>
+    
+    <!-- camera xacro includes -->
+    <xacro:include filename="$(find fr3_husky_description)/mjcf/realsense_d435i.xml.xacro"/>
+    <xacro:include filename="$(find fr3_husky_description)/mjcf/azure_kinect.xml.xacro"/>
+    <xacro:include filename="$(find fr3_husky_description)/mjcf/assets/d435i_assets.xml.xacro"/>
+    <xacro:include filename="$(find fr3_husky_description)/mjcf/assets/azure_kinect_assets.xml.xacro"/>
 
     <!-- ============================================================= -->
     <!-- Should an end-effector be mounted at the flange? -->
@@ -20,6 +30,24 @@
 
     <!-- Is base husky or just box-shaped? -->
     <xacro:arg name="mobile" default="false"/>
+
+    <!-- Attach RealSense D435i to both EEs? -->
+    <xacro:arg name="with_realsense" default="true"/>
+
+    <!-- Attach Azure Kinect to mobile base? -->
+    <xacro:arg name="with_azure" default="true"/>
+
+    <!-- RealSense D435i resolution -->
+    <xacro:arg name="d435i_color_width"  default="1280"/>
+    <xacro:arg name="d435i_color_height" default="720"/>
+    <xacro:arg name="d435i_depth_width"  default="848"/>
+    <xacro:arg name="d435i_depth_height" default="480"/>
+
+    <!-- Azure Kinect DK resolution -->
+    <xacro:arg name="azure_color_width"  default="1920"/>
+    <xacro:arg name="azure_color_height" default="1080"/>
+    <xacro:arg name="azure_depth_width"  default="640"/>
+    <xacro:arg name="azure_depth_height" default="576"/>
     <!-- ============================================================= -->
 
     <xacro:arg name="arm_id" default="fr3" />
@@ -33,6 +61,65 @@
                     value="${'0 0 0.523598776;0 0 -0.523598776' if '$(arg mobile)' == 'true' else '0 0 0;0 0 0'}" />
 
     <xacro:arg name="control_mode" default="effort" />
+
+    <xacro:property name="ee2cam_left_tf"
+                    value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_left.yaml')}" />
+    <xacro:property name="ee2cam_right_tf"
+                    value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_right.yaml')}" />
+    <xacro:property name="base2cam_tf"
+                    value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_base2cam.yaml')}" />
+
+    <xacro:macro name="dual_fr3_arm"
+                 params="arm_prefix connected_to xyz rpy ee2cam_tf">
+        <xacro:franka_robot
+            arm_id="$(arg arm_id)"
+            arm_prefix="${arm_prefix}"
+            no_prefix="false"
+            connected_to="${connected_to}"
+            xyz="${xyz}"
+            rpy="${rpy}"
+            joint_limits="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/joint_limits.yaml')}"
+            kinematics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/kinematics.yaml')}"
+            inertials="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/inertials.yaml')}"
+            dynamics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/dynamics.yaml')}"
+            accelerometer_config="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/accelerometers.yaml')}"
+            hand="$(arg hand)"
+            ee_id="franka_hand"
+            xyz_ee="0 0 0"
+            rpy_ee="0 0 ${-pi/4}"
+            tcp_xyz="0 0 0.1034"
+            tcp_rpy="0 0 0"
+            link0_vis_mesh_indices="[0,1,2,3,4,5,6]"
+            link1_vis_mesh_indices="[0]"
+            link2_vis_mesh_indices="[0]"
+            link3_vis_mesh_indices="[0,1]"
+            link4_vis_mesh_indices="[0,1]"
+            link5_vis_mesh_indices="[0,1,2]"
+            link6_vis_mesh_indices="[0,1,2,3,4,5,6,7]"
+            link7_vis_mesh_indices="[0,1,2,3]"
+            link0_vis_mesh_materials="['black','white','white','white','white','red','black']"
+            link1_vis_mesh_materials="['white']"
+            link2_vis_mesh_materials="['white']"
+            link3_vis_mesh_materials="['white','black']"
+            link4_vis_mesh_materials="['white','black']"
+            link5_vis_mesh_materials="['white','white','black']"
+            link6_vis_mesh_materials="['button_green','white','white','gray','button_red','white','black','button_blue']"
+            link7_vis_mesh_materials="['black','white','white','black']"
+            hand_vis_mesh_indices="[0,1,2,3,4]"
+            finger_vis_mesh_indices="[0,1]"
+            hand_vis_mesh_materials="['off_white','black','black','white','off_white']"
+            finger_vis_mesh_materials="['off_white','black']">
+            <cam_body>
+                <xacro:if value="$(arg with_realsense)">
+                    <xacro:realsense_d435i_mjcf prefix="${arm_prefix}" ee2cam_tf="${ee2cam_tf}"
+                        color_width="$(arg d435i_color_width)"
+                        color_height="$(arg d435i_color_height)"
+                        depth_width="$(arg d435i_depth_width)"
+                        depth_height="$(arg d435i_depth_height)"/>
+                </xacro:if>
+            </cam_body>
+        </xacro:franka_robot>
+    </xacro:macro>
 
     <!-- ── Compiler ── -->
     <compiler angle="radian" autolimits="true" />
@@ -79,81 +166,16 @@
                  width="300" height="300" mark="edge" markrgb="0.8 0.8 0.8" />
         <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2" />
 
-        <!-- named materials -->
-        <material class="$(arg arm_id)" name="black"       rgba=".2 .2 .2 1"/>
-        <material class="$(arg arm_id)" name="white"       rgba="1 1 1 1"/>
-        <material class="$(arg arm_id)" name="off_white"   rgba="0.901961 0.921569 0.929412 1"/>
-        <material class="$(arg arm_id)" name="red"         rgba="1 0.072272 0.039546 1"/>
-        <material class="$(arg arm_id)" name="gray"        rgba="0.863156 0.863156 0.863157 1"/>
-        <material class="$(arg arm_id)" name="button_green" rgba="0.102241 0.571125 0.102242 1"/>
-        <material class="$(arg arm_id)" name="button_red"  rgba="0.520996 0.008023 0.013702 1"/>
-        <material class="$(arg arm_id)" name="button_blue" rgba="0.024157 0.445201 0.737911 1"/>
-
-        <material class="husky" name="husky_orange" rgba="0.996 0.941 0.412 1.0"/>
-        <material class="husky" name="husky_black"  rgba="0.231 0.231 0.231 1.0"/>
-
-        <!-- arm link visual meshes -->
-        <mesh name="link0_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_0.obj"/>
-        <mesh name="link0_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_1.obj"/>
-        <mesh name="link0_2" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_2.obj"/>
-        <mesh name="link0_3" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_3.obj"/>
-        <mesh name="link0_4" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_4.obj"/>
-        <mesh name="link0_5" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_5.obj"/>
-        <mesh name="link0_6" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link0_6.obj"/>
-        <mesh name="link1_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link1.obj"/>
-        <mesh name="link2_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link2.obj"/>
-        <mesh name="link3_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link3_0.obj"/>
-        <mesh name="link3_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link3_1.obj"/>
-        <mesh name="link4_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link4_0.obj"/>
-        <mesh name="link4_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link4_1.obj"/>
-        <mesh name="link5_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link5_0.obj"/>
-        <mesh name="link5_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link5_1.obj"/>
-        <mesh name="link5_2" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link5_2.obj"/>
-        <mesh name="link6_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_0.obj"/>
-        <mesh name="link6_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_1.obj"/>
-        <mesh name="link6_2" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_2.obj"/>
-        <mesh name="link6_3" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_3.obj"/>
-        <mesh name="link6_4" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_4.obj"/>
-        <mesh name="link6_5" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_5.obj"/>
-        <mesh name="link6_6" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_6.obj"/>
-        <mesh name="link6_7" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link6_7.obj"/>
-        <mesh name="link7_0" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link7_0.obj"/>
-        <mesh name="link7_1" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link7_1.obj"/>
-        <mesh name="link7_2" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link7_2.obj"/>
-        <mesh name="link7_3" file="$(find franka_description)/meshes/robot_arms/fr3/visual/link7_3.obj"/>
-
-        <!-- arm link collision meshes -->
-        <mesh name="link0_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link0.stl"/>
-        <mesh name="link1_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link1.stl"/>
-        <mesh name="link2_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link2.stl"/>
-        <mesh name="link3_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link3.stl"/>
-        <mesh name="link4_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link4.stl"/>
-        <mesh name="link5_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link5.stl"/>
-        <mesh name="link6_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link6.stl"/>
-        <mesh name="link7_coll" file="$(find franka_description)/meshes/robot_arms/fr3/collision/link7.stl"/>
-
-        <!-- hand visual meshes -->
-        <mesh name="hand_0"   file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/hand_0.obj"/>
-        <mesh name="hand_1"   file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/hand_1.obj"/>
-        <mesh name="hand_2"   file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/hand_2.obj"/>
-        <mesh name="hand_3"   file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/hand_3.obj"/>
-        <mesh name="hand_4"   file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/hand_4.obj"/>
-        <mesh name="finger_0" file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/finger_0.obj"/>
-        <mesh name="finger_1" file="$(find franka_description)/meshes/robot_ee/franka_hand_white/visual/finger_1.obj"/>
-
-        <!-- hand collision meshes -->
-        <mesh name="hand_coll" file="$(find franka_description)/meshes/robot_ee/franka_hand_white/collision/hand.stl"/>
-
-        <!-- Husky visual meshes -->
-        <mesh name="base_link"             file="$(find husky_description)/meshes/base_link.stl"/>
-        <mesh name="wheel"                 file="$(find husky_description)/meshes/wheel.stl"/>
-        <mesh name="bumper"                file="$(find husky_description)/meshes/bumper.obj"/>
-        <mesh name="top_chassis"           file="$(find husky_description)/meshes/top_chassis.stl"/>
-        <mesh name="top_plate"             file="$(find husky_description)/meshes/top_plate.stl"/>
-        <mesh name="large_top_plate"       file="$(find husky_description)/meshes/large_top_plate.obj"/>
-        <mesh name="user_rail"             file="$(find husky_description)/meshes/user_rail.stl"/>
-        <mesh name="ROAS_structure_single" file="$(find fr3_husky_description)/meshes/ROAS_structure_single.stl"/>
-        <mesh name="ROAS_structure"        file="$(find fr3_husky_description)/meshes/ROAS_structure.stl"/>
+        <xacro:fr3_assets arm_id="$(arg arm_id)"/>
+        <xacro:franka_hand_assets/>
+        <xacro:husky_assets/>
+        <xacro:roas_structure_assets/>
+        <xacro:if value="$(arg with_realsense)">
+            <xacro:d435i_assets/>
+        </xacro:if>
+        <xacro:if value="$(arg with_azure)">
+            <xacro:azure_kinect_assets/>
+        </xacro:if>
     </asset>
 
     <!-- ── Worldbody ── -->
@@ -172,44 +194,24 @@
                         <geom class="collision" pos="-0.28 0 0.65" type="box" size="${0.32/2} ${0.56/2} ${1.3/2}" />
                     </body>
                     
-                    <xacro:franka_multi_robot
-                        arm_ids="${arm_ids_str}"
-                        robot_prefixes="${robot_prefixes_str}"
-                        xyzs="${xyzs_str}"
-                        rpys="${rpys_str}"
-                        joint_limits="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/joint_limits.yaml')}"
-                        inertials="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/inertials.yaml')}"
-                        kinematics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/kinematics.yaml')}"
-                        accelerometer_config="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/accelerometers.yaml')}"
-                        dynamics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/dynamics.yaml')}"
-                        hand="$(arg hand)"
-                        ee_id="franka_hand"
-                        xyz_ee="0 0 0"
-                        rpy_ee="0 0 ${-pi/4}"
-                        tcp_xyz="0 0 0.1034"
-                        tcp_rpy="0 0 0"
-                        connected_to="tmp_base"
-                        link0_vis_mesh_indices="[0,1,2,3,4,5,6]"
-                        link1_vis_mesh_indices="[0]"
-                        link2_vis_mesh_indices="[0]"
-                        link3_vis_mesh_indices="[0,1]"
-                        link4_vis_mesh_indices="[0,1]"
-                        link5_vis_mesh_indices="[0,1,2]"
-                        link6_vis_mesh_indices="[0,1,2,3,4,5,6,7]"
-                        link7_vis_mesh_indices="[0,1,2,3]"
-                        link0_vis_mesh_materials="['black','white','white','white','white','red','black']"
-                        link1_vis_mesh_materials="['white']"
-                        link2_vis_mesh_materials="['white']"
-                        link3_vis_mesh_materials="['white','black']"
-                        link4_vis_mesh_materials="['white','black']"
-                        link5_vis_mesh_materials="['white','white','black']"
-                        link6_vis_mesh_materials="['button_green','white','white','gray','button_red','white','black','button_blue']"
-                        link7_vis_mesh_materials="['black','white','white','black']"
-                        hand_vis_mesh_indices="[0,1,2,3,4]"
-                        finger_vis_mesh_indices="[0,1]"
-                        hand_vis_mesh_materials="['off_white','black','black','white','off_white']"
-                        finger_vis_mesh_materials="['off_white','black']"
-                    />
+                    <xacro:dual_fr3_arm arm_prefix="left"
+                                        connected_to="left_tmp_base"
+                                        xyz="0.345 0.215 0.26"
+                                        rpy="0 0 0.523598776"
+                                        ee2cam_tf="${ee2cam_left_tf}"/>
+                    <xacro:dual_fr3_arm arm_prefix="right"
+                                        connected_to="right_tmp_base"
+                                        xyz="0.345 -0.215 0.26"
+                                        rpy="0 0 -0.523598776"
+                                        ee2cam_tf="${ee2cam_right_tf}"/>
+
+                    <xacro:if value="$(arg with_azure)">
+                        <xacro:azure_kinect_mjcf prefix="top" base2cam_tf="${base2cam_tf}"
+                            color_width="$(arg azure_color_width)"
+                            color_height="$(arg azure_color_height)"
+                            depth_width="$(arg azure_depth_width)"
+                            depth_height="$(arg azure_depth_height)"/>
+                    </xacro:if>
 
                 </additional_comp>
             </xacro:husky>
@@ -220,44 +222,16 @@
             <body name="base" pos="0 0 0">
                 <xacro:box_base no_prefix="false" base_prefix="left_" xyz="0 0.34 0.35"/>
                 <xacro:box_base no_prefix="false" base_prefix="right_" xyz="0 -0.34 0.35"/>
-                    <xacro:franka_multi_robot
-                        arm_ids="${arm_ids_str}"
-                        robot_prefixes="${robot_prefixes_str}"
-                        xyzs="${xyzs_str}"
-                        rpys="${rpys_str}"
-                        joint_limits="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/joint_limits.yaml')}"
-                        inertials="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/inertials.yaml')}"
-                        kinematics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/kinematics.yaml')}"
-                        accelerometer_config="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/accelerometers.yaml')}"
-                        dynamics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/dynamics.yaml')}"
-                        hand="$(arg hand)"
-                        ee_id="franka_hand"
-                        xyz_ee="0 0 0"
-                        rpy_ee="0 0 ${-pi/4}"
-                        tcp_xyz="0 0 0.1034"
-                        tcp_rpy="0 0 0"
-                        connected_to="tmp_base"
-                        link0_vis_mesh_indices="[0,1,2,3,4,5,6]"
-                        link1_vis_mesh_indices="[0]"
-                        link2_vis_mesh_indices="[0]"
-                        link3_vis_mesh_indices="[0,1]"
-                        link4_vis_mesh_indices="[0,1]"
-                        link5_vis_mesh_indices="[0,1,2]"
-                        link6_vis_mesh_indices="[0,1,2,3,4,5,6,7]"
-                        link7_vis_mesh_indices="[0,1,2,3]"
-                        link0_vis_mesh_materials="['black','white','white','white','white','red','black']"
-                        link1_vis_mesh_materials="['white']"
-                        link2_vis_mesh_materials="['white']"
-                        link3_vis_mesh_materials="['white','black']"
-                        link4_vis_mesh_materials="['white','black']"
-                        link5_vis_mesh_materials="['white','white','black']"
-                        link6_vis_mesh_materials="['button_green','white','white','gray','button_red','white','black','button_blue']"
-                        link7_vis_mesh_materials="['black','white','white','black']"
-                        hand_vis_mesh_indices="[0,1,2,3,4]"
-                        finger_vis_mesh_indices="[0,1]"
-                        hand_vis_mesh_materials="['off_white','black','black','white','off_white']"
-                        finger_vis_mesh_materials="['off_white','black']"
-                    />
+                    <xacro:dual_fr3_arm arm_prefix="left"
+                                        connected_to="left_tmp_base"
+                                        xyz="0 0.34 0.715"
+                                        rpy="0 0 0"
+                                        ee2cam_tf="${ee2cam_left_tf}"/>
+                    <xacro:dual_fr3_arm arm_prefix="right"
+                                        connected_to="right_tmp_base"
+                                        xyz="0 -0.34 0.715"
+                                        rpy="0 0 0"
+                                        ee2cam_tf="${ee2cam_right_tf}"/>
             </body>
         </xacro:unless>
 
