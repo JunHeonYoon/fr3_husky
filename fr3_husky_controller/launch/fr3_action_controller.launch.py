@@ -125,6 +125,7 @@ def _launch_setup(context, *args, **kwargs):
             {'mujoco_scene_xacro_path': mjcf_path},
             {'mujoco_scene_xacro_args': xacro_args},
         ])
+    controller_prefix = 'taskset -c 2,3' if use_mujoco.lower() == 'false' else None
 
     #  robot_state_publisher: direct subscription when using MuJoCo 
     rsp_remappings = [('joint_states', joint_states_topic)] if use_mujoco.lower() == 'true' else []
@@ -170,6 +171,7 @@ def _launch_setup(context, *args, **kwargs):
             remappings=[('joint_states', joint_states_topic)],
             output='screen',
             on_exit=Shutdown(),
+            prefix=controller_prefix,
         ),
         # joint_state_publisher: only for real hardware (merges arm + gripper joint states).
         # For MuJoCo, robot_state_publisher subscribes directly via rsp_remappings above.
