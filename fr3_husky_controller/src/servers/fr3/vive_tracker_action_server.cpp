@@ -462,6 +462,7 @@ ViveTracker::ResultPtr ViveTracker::makeResult(StopReason reason)
 
 void ViveTracker::subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
 {
+    const double cutoff_freq = 100.;
     if(msg->poses.size() != NUM_TRACKERS)
     {
         RCLCPP_WARN(node_->get_logger(), "[%s] Size of PoseArray for tracker_pose (%ld) does not equal to 3.", name_.c_str(), msg->poses.size());
@@ -471,11 +472,11 @@ void ViveTracker::subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr
         for(size_t i = 0; i < msg->poses.size(); ++i)
         {
             Eigen::Vector3d position(msg->poses[i].position.x, msg->poses[i].position.y, msg->poses[i].position.z);
-            position = dyros_math::lowPassFilter(position, controller_poses_[i].translation(), 0.001, 0.002);
+            position = dyros_math::lowPassFilter(position, controller_poses_[i].translation(), fr3_model_updater_.dt_, 1./cutoff_freq);
             Eigen::Quaterniond quaternion(msg->poses[i].orientation.w, msg->poses[i].orientation.x, msg->poses[i].orientation.y, msg->poses[i].orientation.z);
             quaternion.normalize();
             Eigen::Quaterniond prev_quat(controller_poses_[i].linear());
-            constexpr double alpha = 0.001 / (0.001 + 0.002);
+            const double alpha = fr3_model_updater_.dt_ / (fr3_model_updater_.dt_ + (1./cutoff_freq));
             Eigen::Quaterniond filtered_quat = prev_quat.slerp(alpha, quaternion);
             Eigen::Matrix3d orientation = filtered_quat.toRotationMatrix();
             {
