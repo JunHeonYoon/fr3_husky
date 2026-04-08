@@ -478,7 +478,7 @@ void ViveTracker::subPoseCallback(const geometry_msgs::msg::PoseArray::SharedPtr
             Eigen::Quaterniond prev_quat(controller_poses_[i].linear());
             const double alpha = fr3_model_updater_.dt_ / (fr3_model_updater_.dt_ + (1./cutoff_freq));
             Eigen::Quaterniond filtered_quat = prev_quat.slerp(alpha, quaternion);
-            Eigen::Matrix3d orientation = filtered_quat.toRotationMatrix();
+            Eigen::Matrix3d orientation = filtered_quat.normalized().toRotationMatrix();
             {
                 std::lock_guard<std::mutex> lock(tracker_pose_mutex_);
                 controller_poses_[i].translation() = position;
