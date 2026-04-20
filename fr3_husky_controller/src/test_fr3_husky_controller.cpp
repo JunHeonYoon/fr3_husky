@@ -476,15 +476,27 @@ controller_interface::CallbackReturn TestFr3HuskyController::on_deactivate(const
 
 controller_interface::return_type TestFr3HuskyController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
 {
-    if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
-    {
-        if (!is_halted_)
+    #if ROS_DISTRO == 22
+        if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
         {
-            haltCommands();
-            is_halted_ = true;
+            if (!is_halted_)
+            {
+                haltCommands();
+                is_halted_ = true;
+            }
+            return controller_interface::return_type::OK;
         }
-        return controller_interface::return_type::OK;
-    }
+    #else
+        if (get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+        {
+            if (!is_halted_)
+            {
+                haltCommands();
+                is_halted_ = true;
+            }
+            return controller_interface::return_type::OK;
+        }
+    #endif
 
     updateJointStates();
     updateRobotData();

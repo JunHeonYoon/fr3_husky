@@ -242,10 +242,17 @@ void MoveToJoint::runPlanning()
                 if (ec)
                 {
                     plan_ok = true;
-                    RCLCPP_INFO(node_->get_logger(),
-                                "[%s] planning succeeded (%zu waypoints)",
-                                name_.c_str(),
-                                plan.trajectory_.joint_trajectory.points.size());
+                    #if ROS_DISTRO == 22
+                        RCLCPP_INFO(node_->get_logger(),
+                                    "[%s] planning succeeded (%zu waypoints)",
+                                    name_.c_str(),
+                                    plan.trajectory_.joint_trajectory.points.size());
+                    #else
+                        RCLCPP_INFO(node_->get_logger(),
+                                    "[%s] planning succeeded (%zu waypoints)",
+                                    name_.c_str(),
+                                    plan.trajectory.joint_trajectory.points.size());
+                    #endif
                 }
                 else
                 {
@@ -317,7 +324,11 @@ void MoveToJoint::runPlanning()
     }
 
     FJT::Goal jtc_goal;
-    jtc_goal.trajectory = plan.trajectory_.joint_trajectory;
+    #if ROS_DISTRO == 22
+        jtc_goal.trajectory = plan.trajectory_.joint_trajectory;
+    #else
+        jtc_goal.trajectory = plan.trajectory.joint_trajectory;
+    #endif
 
     auto send_opts = rclcpp_action::Client<FJT>::SendGoalOptions();
     send_opts.goal_response_callback =
