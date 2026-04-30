@@ -108,7 +108,7 @@ void MoveToJoint::writeHoldCommands()
             return;
         }
         const Eigen::VectorXd torque =
-            fr3_husky_model_updater_.robot_controller_->moveManipulatorJointTorqueStep(
+            fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(
                 q_hold_, qdot_zero, false);
         fr3_husky_model_updater_.torque_desired_total_ = torque - fr3_husky_model_updater_.g_total_;
         fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.torque_desired_total_,

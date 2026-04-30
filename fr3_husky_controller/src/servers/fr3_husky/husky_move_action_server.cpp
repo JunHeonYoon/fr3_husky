@@ -49,7 +49,7 @@ void HuskyMove::onStart()
 
 HuskyMove::ComputeResult HuskyMove::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
 {
-    fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.robot_controller_->MobileVelocityCommand(cmd_vel_);
+    fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.robot_controller_->mobi.VelocityCommand(cmd_vel_);
     if(model_updater_.HasPositionCommandInterface())
     {
         fr3_husky_model_updater_.q_desired_total_ = q_hold_;
@@ -67,7 +67,7 @@ HuskyMove::ComputeResult HuskyMove::compute(const rclcpp::Time& /*time*/, const 
     else
     {
         fr3_husky_model_updater_.torque_desired_total_ 
-            = fr3_husky_model_updater_.robot_controller_->moveManipulatorJointTorqueStep(q_hold_,
+            = fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(q_hold_,
                                                                                          Eigen::VectorXd::Zero(model_updater_.manipulator_dof_),
                                                                                          false);
         fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.torque_desired_total_,
