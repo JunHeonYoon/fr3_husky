@@ -145,7 +145,25 @@ public:
             std::bind(&ActionServerBase::handleAccepted, this, std::placeholders::_1));
     }
 
-    ~ActionServerBase() override = default;
+    ~ActionServerBase() override
+    {
+        try
+        {
+            finalizeGoal(StopReason::ABORTED);
+        }
+        catch (const std::exception& e)
+        {
+            RCLCPP_WARN(node_->get_logger(), "[%s] destructor finalizeGoal skipped: %s", name_.c_str(), e.what());
+        }
+        catch (...)
+        {
+            RCLCPP_WARN(node_->get_logger(), "[%s] destructor finalizeGoal skipped: unknown exception", name_.c_str());
+        }
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        preempt_goal_handle_.reset();
+        active_goal_.reset();
+    }
 
     bool update(const rclcpp::Time& time, const rclcpp::Duration& period) override
     {
@@ -293,7 +311,18 @@ protected:
 
         if (goal_handle && feedback)
         {
-            goal_handle->publish_feedback(feedback);
+            try
+            {
+                goal_handle->publish_feedback(feedback);
+            }
+            catch (const std::exception& e)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: %s", name_.c_str(), e.what());
+            }
+            catch (...)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: unknown exception", name_.c_str());
+            }
         }
     }
 
@@ -358,14 +387,36 @@ private:
         {
             RCLCPP_ERROR(node_->get_logger(), "[%s] onGoalAccepted exception: %s", name_.c_str(), e.what());
             auto result = safeMakeResult(StopReason::ABORTED);
-            goal_handle->abort(result);
+            try
+            {
+                goal_handle->abort(result);
+            }
+            catch (const std::exception& abort_error)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] abort skipped after onGoalAccepted exception: %s", name_.c_str(), abort_error.what());
+            }
+            catch (...)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] abort skipped after onGoalAccepted exception: unknown exception", name_.c_str());
+            }
             return;
         }
         catch (...)
         {
             RCLCPP_ERROR(node_->get_logger(), "[%s] onGoalAccepted unknown exception", name_.c_str());
             auto result = safeMakeResult(StopReason::ABORTED);
-            goal_handle->abort(result);
+            try
+            {
+                goal_handle->abort(result);
+            }
+            catch (const std::exception& abort_error)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] abort skipped after onGoalAccepted exception: %s", name_.c_str(), abort_error.what());
+            }
+            catch (...)
+            {
+                RCLCPP_WARN(node_->get_logger(), "[%s] abort skipped after onGoalAccepted exception: unknown exception", name_.c_str());
+            }
             return;
         }
 
@@ -420,17 +471,28 @@ private:
         }
 
         auto result = safeMakeResult(reason);
-        if (reason == StopReason::CANCELED)
+        try
         {
-            goal_handle->canceled(result);
-            return;
+            if (reason == StopReason::CANCELED)
+            {
+                goal_handle->canceled(result);
+                return;
+            }
+            if (reason == StopReason::SUCCEEDED)
+            {
+                goal_handle->succeed(result);
+                return;
+            }
+            goal_handle->abort(result);
         }
-        if (reason == StopReason::SUCCEEDED)
+        catch (const std::exception& e)
         {
-            goal_handle->succeed(result);
-            return;
+            RCLCPP_WARN(node_->get_logger(), "[%s] finalizeGoal skipped result publish: %s", name_.c_str(), e.what());
         }
-        goal_handle->abort(result);
+        catch (...)
+        {
+            RCLCPP_WARN(node_->get_logger(), "[%s] finalizeGoal skipped result publish: unknown exception", name_.c_str());
+        }
     }
 
     ResultPtr safeMakeResult(StopReason reason)
