@@ -102,12 +102,12 @@ bool ViveTracker::acceptGoal(const ActionT::Goal& goal)
         return false;
     }
 
-    if (goal.mode < 0 || goal.mode > 3)
+    if (goal.control_mode < 0 || goal.control_mode > 3)
     {
         RCLCPP_WARN(node_->get_logger(),
                                          "[%s] Reject action: mode must be 0 to 3 (0: CLIK, 1: OSF, 2: QPIK, 3: QPID). The mode from action goal is %d.",
                                          name_.c_str(),
-                                         static_cast<int>(goal.mode));
+                                         static_cast<int>(goal.control_mode));
         return false;
     }
 
@@ -130,7 +130,7 @@ bool ViveTracker::acceptGoal(const ActionT::Goal& goal)
 
 void ViveTracker::onGoalAccepted(const ActionT::Goal& goal)
 {
-    control_mode_ = goal.mode;
+    control_mode_ = goal.control_mode;
     left_controller_ee_name_ = goal.left_controller_ee_name;
     right_controller_ee_name_ = goal.right_controller_ee_name;
     move_ori_ = goal.move_orientation;
