@@ -193,7 +193,8 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         // ============================ Action Servers ============================
         // ========================================================================
         std::unique_ptr<FR3HuskyModelUpdater> model_updater_;
-        bool loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller);
+        bool loadDRCGains(std::shared_ptr<drc::MobileManipulator::RobotController> robot_controller,
+                          const std::shared_ptr<drc::MobileManipulator::RobotData>& robot_data);
         std::vector<std::shared_ptr<fr3_husky_controller::servers::ActionServerManager>> action_servers_;
         std::shared_ptr<fr3_husky_controller::servers::ActionServerManager> active_server_;
         std::unique_ptr<fr3_husky_controller::servers::IdleControl> idle_control_;

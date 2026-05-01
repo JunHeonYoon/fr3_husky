@@ -93,6 +93,8 @@ void OmegaHaptic::onGoalAccepted(const ActionT::Goal& goal)
 
 void OmegaHaptic::onStart()
 {
+    const double current_time = node_->now().seconds();
+
     {
         std::lock_guard<std::mutex> lock(haptic_pose_mutex_);
         haptic_pose_.setIdentity();
@@ -118,17 +120,21 @@ void OmegaHaptic::onStart()
     ee_data[control_ee_name_].x = fr3_model_updater_.robot_data_->getPose(control_ee_name_);
     ee_data[control_ee_name_].xdot = fr3_model_updater_.robot_data_->getVelocity(control_ee_name_);
     ee_data[control_ee_name_].xddot.setZero();
+    ee_data[control_ee_name_].current_time = current_time;
     ee_data[control_ee_name_].setInit();
     ee_data[control_ee_name_].setDesired();
 
     RCLCPP_INFO(node_->get_logger(), "[%s] started", name_.c_str());
 }
 
-OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
+OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& time, const rclcpp::Duration& /*period*/)
 {
+    const double current_time = time.seconds();
+
     ee_data[control_ee_name_].x = fr3_model_updater_.robot_data_->getPose(control_ee_name_);
     ee_data[control_ee_name_].xdot = fr3_model_updater_.robot_data_->getVelocity(control_ee_name_);
     ee_data[control_ee_name_].xddot.setZero();
+    ee_data[control_ee_name_].current_time = current_time;
 
     Eigen::Affine3d haptic_pose_local;
     Eigen::Vector6d haptic_vel_local;

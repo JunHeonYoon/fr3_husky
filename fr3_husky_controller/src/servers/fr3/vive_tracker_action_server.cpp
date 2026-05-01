@@ -141,6 +141,8 @@ void ViveTracker::onGoalAccepted(const ActionT::Goal& goal)
 
 void ViveTracker::onStart()
 {
+    const double current_time = node_->now().seconds();
+
     {
         std::lock_guard<std::mutex> lock(tracker_pose_mutex_);
         for(auto& tracker_pose : controller_poses_) tracker_pose.setIdentity();
@@ -164,6 +166,7 @@ void ViveTracker::onStart()
         ee_data_[left_controller_ee_name_].x = fr3_model_updater_.robot_data_->getPose(left_controller_ee_name_);
         ee_data_[left_controller_ee_name_].xdot = fr3_model_updater_.robot_data_->getVelocity(left_controller_ee_name_);
         ee_data_[left_controller_ee_name_].xddot.setZero();
+        ee_data_[left_controller_ee_name_].current_time = current_time;
         ee_data_[left_controller_ee_name_].setInit();
         ee_data_[left_controller_ee_name_].setDesired();
     }
@@ -173,6 +176,7 @@ void ViveTracker::onStart()
         ee_data_[right_controller_ee_name_].x = fr3_model_updater_.robot_data_->getPose(right_controller_ee_name_);
         ee_data_[right_controller_ee_name_].xdot = fr3_model_updater_.robot_data_->getVelocity(right_controller_ee_name_);
         ee_data_[right_controller_ee_name_].xddot.setZero();
+        ee_data_[right_controller_ee_name_].current_time = current_time;
         ee_data_[right_controller_ee_name_].setInit();
         ee_data_[right_controller_ee_name_].setDesired();
     }
@@ -180,13 +184,16 @@ void ViveTracker::onStart()
     RCLCPP_INFO(node_->get_logger(), "[%s] started", name_.c_str());
 }
 
-ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
+ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& time, const rclcpp::Duration& /*period*/)
 {
+    const double current_time = time.seconds();
+
     for(auto& [ee_name, ee_data] : ee_data_)
     {
         ee_data.x = fr3_model_updater_.robot_data_->getPose(ee_name);
         ee_data.xdot = fr3_model_updater_.robot_data_->getVelocity(ee_name);
         ee_data.xddot.setZero();
+        ee_data.current_time = current_time;
     }
 
     std::vector<Eigen::Affine3d> controller_poses_local;   // left, right, head

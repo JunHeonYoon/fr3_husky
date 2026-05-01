@@ -106,3 +106,9 @@ fr3_action_controller:
               default_value: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
               description: "Weight for damping manipulator joint acceleration (size must be 7 * num_robot)"
             }
+        null_torque:
+          manipulator: {
+              type: double_array,
+              default_value: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+              description: "Weight for manipulator QPID null-space torque tracking on manipulator joints (size must be 7 * num_robot)"
+            }
