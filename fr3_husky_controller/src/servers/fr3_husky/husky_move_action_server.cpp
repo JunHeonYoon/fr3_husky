@@ -23,8 +23,13 @@ HuskyMove::HuskyMove(const std::string& name, const NodePtr& node, ModelUpdaterB
 : Base(name, node, model_updater),
   fr3_husky_model_updater_(getFR3HuskyModelUpdater(model_updater, name))
 {
-    cmd_vel_sub_ = node_->create_subscription<geometry_msgs::msg::Twist>("fr3_husky/cmd_vel", 1, std::bind(&HuskyMove::subCMDVelCallback, this, std::placeholders::_1));
-    
+    cmd_vel_sub_ = node_->create_subscription<geometry_msgs::msg::Twist>(
+        "/cmd_vel", 1, std::bind(&HuskyMove::subCMDVelCallback, this, std::placeholders::_1));
+    joy_cmd_vel_sub_ = node_->create_subscription<geometry_msgs::msg::Twist>(
+        "/joy_teleop/cmd_vel", 1, std::bind(&HuskyMove::subCMDVelCallback, this, std::placeholders::_1));
+    fr3_husky_cmd_vel_sub_ = node_->create_subscription<geometry_msgs::msg::Twist>(
+        "/fr3_husky/cmd_vel", 1, std::bind(&HuskyMove::subCMDVelCallback, this, std::placeholders::_1));
+
     cmd_vel_.setZero();
     q_hold_.setZero(model_updater.manipulator_dof_);
 
@@ -66,10 +71,10 @@ HuskyMove::ComputeResult HuskyMove::compute(const rclcpp::Time& /*time*/, const 
     }
     else
     {
-        fr3_husky_model_updater_.torque_desired_total_ 
+        fr3_husky_model_updater_.torque_desired_total_
             = fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(q_hold_,
-                                                                                         Eigen::VectorXd::Zero(model_updater_.manipulator_dof_),
-                                                                                         false);
+                                                                                    Eigen::VectorXd::Zero(model_updater_.manipulator_dof_),
+                                                                                    false);
         fr3_husky_model_updater_.writeCommand(fr3_husky_model_updater_.torque_desired_total_,
                                               fr3_husky_model_updater_.wheel_vel_desired_);
         return ComputeResult::RUNNING;   
