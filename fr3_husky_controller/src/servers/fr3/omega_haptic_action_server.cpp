@@ -303,11 +303,16 @@ OmegaHaptic::ResultPtr OmegaHaptic::makeResult(StopReason reason)
 
 void OmegaHaptic::subPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
+    const double cutoff_freq = 100.;
+
     Eigen::Vector3d position(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-    position = dyros_math::lowPassFilter(position, haptic_pose_.translation(), 0.001, 0.002);
+    position = dyros_math::lowPassFilter(position, haptic_pose_.translation(), fr3_model_updater_.dt_, 1./cutoff_freq);
     Eigen::Quaterniond quaternion(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
     quaternion.normalize();
-    Eigen::Matrix3d orientation = quaternion.toRotationMatrix();
+    Eigen::Quaterniond prev_quat(haptic_pose_.linear());
+    const double alpha = fr3_model_updater_.dt_ / (fr3_model_updater_.dt_ + (1./cutoff_freq));
+    Eigen::Quaterniond filtered_quat = prev_quat.slerp(alpha, quaternion);
+    Eigen::Matrix3d orientation = filtered_quat.normalized().toRotationMatrix();
     {
         std::lock_guard<std::mutex> lock(haptic_pose_mutex_);
         haptic_pose_.translation() = position;
