@@ -83,7 +83,10 @@ ViveTracker::ViveTracker(const std::string& name, const NodePtr& node, ModelUpda
         });
 
     // Initialize franka hand state
-    for(const auto& robot_name : model_updater_.robot_names_) fr3_husky_model_updater_.GripperHoming(robot_name); 
+    for(const auto& robot_name : model_updater_.robot_names_) fr3_husky_model_updater_.GripperHoming(robot_name);
+
+    fr3_husky_model_updater_.robot_controller_->moma.setIDKvGain({{fr3_husky_model_updater_.robot_data_->getBaseLinkName(),
+                                                                   Eigen::Vector6d::Constant(1000.0)}});
 
     RCLCPP_INFO(node_->get_logger(), "[%s] ViveTracker created", name_.c_str());
 }
@@ -790,14 +793,30 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& time, const 
                     + fr3_husky_model_updater_.dt_ * wheel_acc_desired;
                 break;
             }
-            case 2: // QPIK
+            case 2: // HQPIK
             {
-                Eigen::VectorXd null_qdot_mobile = wheel_vel_joy;
-                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.QPIKStep(ee_data_,
+                const std::string base_link_name = fr3_husky_model_updater_.robot_data_->getBaseLinkName();
+
+                drc::TaskSpaceData base_task_data = drc::TaskSpaceData::Zero();
+                base_task_data.x         = fr3_husky_model_updater_.robot_data_->getPose(base_link_name);
+                base_task_data.xdot      = fr3_husky_model_updater_.robot_data_->getVelocity(base_link_name);
+                base_task_data.x_desired = base_task_data.x;
+
+                const Eigen::Matrix3d R_base = T_world2mobi_base_.linear();
+                base_task_data.xdot_desired.head<3>() = R_base * Eigen::Vector3d(base_vel_b_joy(0), base_vel_b_joy(1), 0.0);
+                base_task_data.xdot_desired.tail<3>() = R_base * Eigen::Vector3d(0.0, 0.0, base_vel_b_joy(2));
+
+                const std::vector<std::map<std::string, drc::TaskSpaceData>> task_hierarchy = {
+                    ee_data_,
+                    {{base_link_name, base_task_data}}
+                };
+
+                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.HQPIKStep(
+                    task_hierarchy,
                     fr3_husky_model_updater_.wheel_vel_desired_,
                     fr3_husky_model_updater_.qdot_desired_total_,
-                    null_qdot_mobile,
                     time_verbose_dual);
+
                 if(!is_qp_solved_dual)
                 {
                     fr3_husky_model_updater_.qdot_desired_total_.setZero();
@@ -811,14 +830,30 @@ ViveTracker::ComputeResult ViveTracker::compute(const rclcpp::Time& time, const 
                         fr3_husky_model_updater_.qdot_desired_total_, false);
                 break;
             }
-            case 3: // QPID
+            case 3: // HQPID
             {
-                const Eigen::VectorXd null_torque_mobile = dual_mobile_null_torque_gain_ * (wheel_vel_joy - fr3_husky_model_updater_.wheel_vel_);
-                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.QPIDStep(ee_data_,
+                const std::string base_link_name = fr3_husky_model_updater_.robot_data_->getBaseLinkName();
+
+                drc::TaskSpaceData base_task_data = drc::TaskSpaceData::Zero();
+                base_task_data.x         = fr3_husky_model_updater_.robot_data_->getPose(base_link_name);
+                base_task_data.xdot      = fr3_husky_model_updater_.robot_data_->getVelocity(base_link_name);
+                base_task_data.x_desired = base_task_data.x;
+
+                const Eigen::Matrix3d R_base = T_world2mobi_base_.linear();
+                base_task_data.xdot_desired.head<3>() = R_base * Eigen::Vector3d(base_vel_b_joy(0), base_vel_b_joy(1), 0.0);
+                base_task_data.xdot_desired.tail<3>() = R_base * Eigen::Vector3d(0.0, 0.0, base_vel_b_joy(2));
+
+                const std::vector<std::map<std::string, drc::TaskSpaceData>> task_hierarchy = {
+                    ee_data_,
+                    {{base_link_name, base_task_data}}
+                };
+
+                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.HQPIDStep(
+                    task_hierarchy,
                     wheel_acc_desired,
                     fr3_husky_model_updater_.torque_desired_total_,
-                    null_torque_mobile,
                     time_verbose_dual);
+
                 if(!is_qp_solved_dual)
                 {
                     fr3_husky_model_updater_.torque_desired_total_ =
@@ -971,7 +1006,7 @@ void ViveTracker::subRJoyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 }
 
 // Register this server into global registry (executed when this TU is linked)
-REGISTER_FR3_HUSKY_ACTION_SERVER(ViveTracker, "fr3_husky_vive_tracker")
+// REGISTER_FR3_HUSKY_ACTION_SERVER(ViveTracker, "fr3_husky_vive_tracker")
 
 }  // namespace fr3_husky_controller::servers::fr3_husky
 /*

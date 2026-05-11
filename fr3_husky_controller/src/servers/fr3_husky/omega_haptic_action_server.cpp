@@ -1,5 +1,7 @@
 #include <fr3_husky_controller/servers/fr3_husky/omega_haptic_action_server.hpp>
 
+#include <cmath>
+#include <map>
 #include <stdexcept>
 
 namespace fr3_husky_controller::servers::fr3_husky
@@ -51,6 +53,9 @@ OmegaHaptic::OmegaHaptic(const std::string& name, const NodePtr& node, ModelUpda
     ee_data.clear();
     T_world2mobi_base_.setIdentity();
     T_world2mobi_base_init_.setIdentity();
+
+    fr3_husky_model_updater_.robot_controller_->moma.setIDKvGain({{fr3_husky_model_updater_.robot_data_->getBaseLinkName(), 
+                                                          Eigen::Vector6d::Constant(1000.0)}});
 
     RCLCPP_INFO(node_->get_logger(), "[%s] OmegaHaptic created", name_.c_str());
 }
@@ -284,8 +289,9 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& time, const 
             {
                 fr3_husky_model_updater_.robot_controller_->mani.CLIKStep(ee_data_mani,
                                                                           fr3_husky_model_updater_.qdot_desired_total_);
-                fr3_husky_model_updater_.q_desired_total_ = fr3_husky_model_updater_.q_total_ +
-                                                            fr3_husky_model_updater_.dt_ * fr3_husky_model_updater_.qdot_desired_total_;
+                fr3_husky_model_updater_.q_desired_total_ =
+                    fr3_husky_model_updater_.q_total_ +
+                    fr3_husky_model_updater_.dt_ * fr3_husky_model_updater_.qdot_desired_total_;
                 fr3_husky_model_updater_.torque_desired_total_ =
                     fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(fr3_husky_model_updater_.q_desired_total_,
                                                                                          fr3_husky_model_updater_.qdot_desired_total_, 
@@ -461,14 +467,6 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& time, const 
         const Eigen::Vector2d joy_wheel_vel = fr3_husky_model_updater_.robot_controller_->mobi.VelocityCommand(joy_cmd_vel_local);
         const Eigen::VectorXd null_qdot_mobile = joy_wheel_vel;
 
-        // null_torque = M_act * desired_null_acc (no h_act: QP dynamics constraint handles nonlinear effects internally)
-        // dual_mobile_null_torque_gain_ is an acceleration bandwidth gain [rad/s^2 / (rad/s)]
-        const drc::MobileManipulator::ActuatorIndex& act_idx = fr3_husky_model_updater_.robot_data_->getActuatorIndex();
-        Eigen::VectorXd null_acc_actuated = Eigen::VectorXd::Zero(fr3_husky_model_updater_.robot_data_->getActuatorDof());
-        null_acc_actuated.segment(act_idx.mobi_start, fr3_husky_model_updater_.mobile_dof_) =
-            dual_mobile_null_torque_gain_ * (joy_wheel_vel - fr3_husky_model_updater_.wheel_vel_);
-        const Eigen::VectorXd null_torque_mobile =
-            fr3_husky_model_updater_.robot_data_->getMassMatrixActuated() * null_acc_actuated;
 
         switch(control_mode_)
         {
@@ -478,7 +476,7 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& time, const 
                                                                           fr3_husky_model_updater_.wheel_vel_desired_,
                                                                           fr3_husky_model_updater_.qdot_desired_total_,
                                                                           null_qdot_mobile);
-                fr3_husky_model_updater_.q_desired_total_ = fr3_husky_model_updater_.q_total_ + 
+                fr3_husky_model_updater_.q_desired_total_ = fr3_husky_model_updater_.q_total_ +
                                                             fr3_husky_model_updater_.dt_ * fr3_husky_model_updater_.qdot_desired_total_;
                 fr3_husky_model_updater_.torque_desired_total_ =
                     fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(fr3_husky_model_updater_.q_desired_total_,
@@ -488,48 +486,95 @@ OmegaHaptic::ComputeResult OmegaHaptic::compute(const rclcpp::Time& time, const 
             }
             case 1: // OSF
             {
+                const Eigen::VectorXd null_torque_mobile = dual_mobile_null_torque_gain_ * (joy_wheel_vel - fr3_husky_model_updater_.wheel_vel_);
                 fr3_husky_model_updater_.robot_controller_->moma.OSFStep(ee_data,
                                                                          wheel_acc_desired,
                                                                          fr3_husky_model_updater_.torque_desired_total_,
                                                                          null_torque_mobile);
-                fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.wheel_vel_ + 
-                                                              fr3_husky_model_updater_.dt_ * wheel_acc_desired;
+                fr3_husky_model_updater_.wheel_vel_desired_ =
+                    fr3_husky_model_updater_.wheel_vel_ +
+                    fr3_husky_model_updater_.dt_ * wheel_acc_desired;
                 break;
             }
-            case 2: // QPIK
+            case 2: // HQPIK
             {
-                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.QPIKStep(ee_data,
-                                                                                              fr3_husky_model_updater_.wheel_vel_desired_,
-                                                                                              fr3_husky_model_updater_.qdot_desired_total_,
-                                                                                              null_qdot_mobile,
-                                                                                              time_verbose_dual);
+                const std::string base_link_name = fr3_husky_model_updater_.robot_data_->getBaseLinkName();
+
+                // Mobile base: velocity-only tracking (x_desired = current pose → zero position error)
+                drc::TaskSpaceData base_task_data = drc::TaskSpaceData::Zero();
+                base_task_data.x         = fr3_husky_model_updater_.robot_data_->getPose(base_link_name);
+                base_task_data.xdot      = fr3_husky_model_updater_.robot_data_->getVelocity(base_link_name);
+                base_task_data.x_desired = base_task_data.x;   // no position correction
+
+                // Convert joy cmd_vel (body frame) → world-frame 6D twist for xdot_desired
+                const Eigen::Matrix3d R_base = T_world2mobi_base_.linear();
+                base_task_data.xdot_desired.head<3>() = R_base * Eigen::Vector3d(joy_cmd_vel_local(0), joy_cmd_vel_local(1), 0.0);
+                base_task_data.xdot_desired.tail<3>() = R_base * Eigen::Vector3d(0.0, 0.0, joy_cmd_vel_local(2));
+
+                // Priority 1: EE tracking  |  Priority 2: mobile base velocity
+                const std::vector<std::map<std::string, drc::TaskSpaceData>> task_hierarchy = {
+                    {{control_ee_name_, ee_data[control_ee_name_]}},
+                    {{base_link_name,   base_task_data}}
+                };
+
+                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.HQPIKStep(
+                    task_hierarchy,
+                    fr3_husky_model_updater_.wheel_vel_desired_,
+                    fr3_husky_model_updater_.qdot_desired_total_,
+                    time_verbose_dual);
+
                 if(!is_qp_solved_dual)
                 {
                     fr3_husky_model_updater_.qdot_desired_total_.setZero();
                     fr3_husky_model_updater_.wheel_vel_desired_.setZero();
                 }
-                fr3_husky_model_updater_.q_desired_total_ +=
+                fr3_husky_model_updater_.q_desired_total_ =
+                    fr3_husky_model_updater_.q_total_ +
                     fr3_husky_model_updater_.dt_ * fr3_husky_model_updater_.qdot_desired_total_;
                 fr3_husky_model_updater_.torque_desired_total_ =
-                    fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(fr3_husky_model_updater_.q_desired_total_,
-                                                                                         fr3_husky_model_updater_.qdot_desired_total_, 
-                                                                                         false);
+                    fr3_husky_model_updater_.robot_controller_->mani.moveJointTorqueStep(
+                        fr3_husky_model_updater_.q_desired_total_,
+                        fr3_husky_model_updater_.qdot_desired_total_,
+                        false);
                 break;
             }
-            case 3: // QPID
+            case 3: // HQPID
             {
-                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.QPIDStep(ee_data,
-                                                                                              wheel_acc_desired,
-                                                                                              fr3_husky_model_updater_.torque_desired_total_,
-                                                                                              null_torque_mobile,
-                                                                                              time_verbose_dual);
+                const std::string base_link_name = fr3_husky_model_updater_.robot_data_->getBaseLinkName();
+
+                drc::TaskSpaceData base_task_data = drc::TaskSpaceData::Zero();
+                base_task_data.x         = fr3_husky_model_updater_.robot_data_->getPose(base_link_name);
+                base_task_data.xdot      = fr3_husky_model_updater_.robot_data_->getVelocity(base_link_name);
+                base_task_data.x_desired = base_task_data.x;  // no position correction
+                // xddot_desired stays zero (no feed-forward)
+
+                const Eigen::Matrix3d R_base = T_world2mobi_base_.linear();
+                base_task_data.xdot_desired.head<3>() = R_base * Eigen::Vector3d(joy_cmd_vel_local(0), joy_cmd_vel_local(1), 0.0);
+                base_task_data.xdot_desired.tail<3>() = R_base * Eigen::Vector3d(0.0, 0.0, joy_cmd_vel_local(2));
+
+                const std::vector<std::map<std::string, drc::TaskSpaceData>> task_hierarchy = {
+                    {{control_ee_name_, ee_data[control_ee_name_]}},
+                    {{base_link_name,   base_task_data}}
+                };
+
+                is_qp_solved_dual = fr3_husky_model_updater_.robot_controller_->moma.HQPIDStep(
+                    task_hierarchy,
+                    wheel_acc_desired,
+                    fr3_husky_model_updater_.torque_desired_total_,
+                    time_verbose_dual);
+
                 if(!is_qp_solved_dual)
                 {
-                    fr3_husky_model_updater_.torque_desired_total_ = fr3_husky_model_updater_.robot_data_->mani.getGravity();
+                    const auto actuator_idx = fr3_husky_model_updater_.robot_data_->getActuatorIndex();
+                    fr3_husky_model_updater_.torque_desired_total_ =
+                        fr3_husky_model_updater_.robot_data_->getGravityActuated().segment(
+                            actuator_idx.mani_start,
+                            fr3_husky_model_updater_.manipulator_dof_);
                     wheel_acc_desired.setZero();
                 }
-                fr3_husky_model_updater_.wheel_vel_desired_ = fr3_husky_model_updater_.wheel_vel_ + 
-                                                              fr3_husky_model_updater_.dt_ * wheel_acc_desired;
+                fr3_husky_model_updater_.wheel_vel_desired_ =
+                    fr3_husky_model_updater_.wheel_vel_ +
+                    fr3_husky_model_updater_.dt_ * wheel_acc_desired;
                 break;
             }
         }
