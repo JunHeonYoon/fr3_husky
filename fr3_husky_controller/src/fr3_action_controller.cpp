@@ -498,7 +498,6 @@ bool FR3ActionController::loadDRCGains(std::shared_ptr<drc::Manipulator::RobotCo
     if (!check_vector_size("dyros_robot_controller.QPID_weight.tracking.weights", task_dof, qpid.tracking.weights.size())) return false;
     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.velocity.manipulator", manipulator_dof_, qpid.joint.velocity.manipulator.size())) return false;
     if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.acceleration.manipulator", manipulator_dof_, qpid.joint.acceleration.manipulator.size())) return false;
-    if (!check_vector_size("dyros_robot_controller.QPID_weight.joint.null_torque.manipulator", manipulator_dof_, qpid.joint.null_torque.manipulator.size())) return false;
 
     const Eigen::VectorXd mani_joint_kp = Eigen::Map<const Eigen::VectorXd>(joint.kp.data(), joint.kp.size());
     const Eigen::VectorXd mani_joint_kv = Eigen::Map<const Eigen::VectorXd>(joint.kv.data(), joint.kv.size());
@@ -514,7 +513,6 @@ bool FR3ActionController::loadDRCGains(std::shared_ptr<drc::Manipulator::RobotCo
     const Eigen::VectorXd qpid_tracking = Eigen::Map<const Eigen::VectorXd>(qpid.tracking.weights.data(), qpid.tracking.weights.size());
     const Eigen::VectorXd qpid_mani_vel_damping = Eigen::Map<const Eigen::VectorXd>(qpid.joint.velocity.manipulator.data(), qpid.joint.velocity.manipulator.size());
     const Eigen::VectorXd qpid_mani_acc_damping = Eigen::Map<const Eigen::VectorXd>(qpid.joint.acceleration.manipulator.data(), qpid.joint.acceleration.manipulator.size());
-    const Eigen::VectorXd qpid_null_torque = Eigen::Map<const Eigen::VectorXd>(qpid.joint.null_torque.manipulator.data(), qpid.joint.null_torque.manipulator.size());
 
     std::ostringstream oss;
     oss << "dyros robot controller gains" << "\n"
@@ -532,15 +530,16 @@ bool FR3ActionController::loadDRCGains(std::shared_ptr<drc::Manipulator::RobotCo
         << "\tQPID_weight" << "\n"
         << "\t\ttracking.weights: " << qpid_tracking.transpose() << "\n"
         << "\t\tjoint.velocity.manipulator: " << qpid_mani_vel_damping.transpose() << "\n"
-        << "\t\tjoint.acceleration.manipulator: " << qpid_mani_acc_damping.transpose() << "\n"
-        << "\t\tjoint.null_torque.manipulator: " << qpid_null_torque.transpose();
+        << "\t\tjoint.acceleration.manipulator: " << qpid_mani_acc_damping.transpose();
     LOGI(get_node(), "%s", oss.str().c_str());
 
     robot_controller->setJointGain(mani_joint_kp, mani_joint_kv);
     robot_controller->setIKGain(task_ik_kp);
     robot_controller->setIDGain(task_id_kp, task_id_kv);
     robot_controller->setQPIKGain(qpik_tracking, qpik_mani_damping, qpik_mani_acc_damping);
-    robot_controller->setQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping, qpid_null_torque);
+    robot_controller->setQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping);
+    robot_controller->setHQPIKGain(qpik_tracking, qpik_mani_damping, qpik_mani_acc_damping);
+    robot_controller->setHQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping);
     return true;
 }
 
