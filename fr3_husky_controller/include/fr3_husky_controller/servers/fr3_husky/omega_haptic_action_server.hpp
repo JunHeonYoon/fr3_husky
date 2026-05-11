@@ -98,7 +98,7 @@ private:
     double haptic_ori_multiplier_;
     double haptic_lin_vel_multiplier_;
     double haptic_ang_vel_multiplier_;
-    double dual_mobile_null_torque_gain_{20.0};
+    double dual_mobile_null_torque_gain_{100.0};
 
     std::mutex haptic_pose_mutex_;
     std::mutex haptic_ori_encoder_mutex_;
