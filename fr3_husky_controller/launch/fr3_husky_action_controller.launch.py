@@ -2,9 +2,9 @@ import os
 import yaml
 import xacro
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, Shutdown
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, Shutdown
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -161,7 +161,10 @@ def _launch_setup(context, *args, **kwargs):
             executable='ros2_control_node',
             namespace=namespace,
             parameters=cm_params,
-            remappings=[('joint_states', joint_states_topic)],
+            remappings=[
+                ('joint_states', joint_states_topic),
+                (f'/{main_controller}/odom', '/odom'),
+            ],
             output='screen',
             on_exit=Shutdown(),
         ),
@@ -224,6 +227,34 @@ def _launch_setup(context, *args, **kwargs):
             condition=UnlessCondition(PythonExpression(["'", LaunchConfiguration('use_mujoco'), "' == 'true'"])),
         ),
     ]
+
+    # microstrain IMU driver + ZUPT: real hardware only, launch if package is installed
+    # TODO: if the mujoco is launched, do same thing as real hardware so that we can use EKF for state estimation in simulation as well (currently we just use robot_state_publisher with remapping to joint_states topic)
+    try:
+        microstrain_launch = os.path.join(
+            get_package_share_directory('microstrain_inertial_driver'),
+            'launch', 'microstrain_launch.py'
+        )
+        imu_zupt_script = os.path.join(
+            get_package_share_directory('husky_control'),
+            'scripts', 'imu_zupt.py'
+        )
+        real_hw = UnlessCondition(PythonExpression(["'", LaunchConfiguration('use_mujoco'), "' == 'true'"]))
+        nodes.append(
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(microstrain_launch),
+                condition=real_hw,
+            )
+        )
+        nodes.append(
+            ExecuteProcess(
+                cmd=['python3', imu_zupt_script],
+                output='screen',
+                condition=real_hw,
+            )
+        )
+    except PackageNotFoundError:
+        pass
 
     # franka_robot_state_broadcaster: real hardware only (skip for fake or mujoco)
     for broadcaster_name in franka_broadcaster_names:
