@@ -113,6 +113,7 @@ def _launch_setup(context, *args, **kwargs):
         cm_params.extend([
             {'mujoco_scene_xacro_path': mjcf_path},
             {'mujoco_scene_xacro_args': xacro_args},
+            os.path.join(pkg_ctrl, 'config', 'fr3_husky_ros_controllers_mujoco.yaml'),
         ])
 
     # robot_state_publisher: direct subscription when using MuJoCo
