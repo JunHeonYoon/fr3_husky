@@ -318,6 +318,7 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     model_updater_->initialize(num_robots_, manipulator_dof_, dt_, params_.robot_name, ee_names_);
     model_updater_->setDRCRobotData(std::move(robot_data));
     model_updater_->setDRCRobotController(std::move(robot_controller));
+    model_updater_->setWheelEncoderMultiplier(params_.wheel_encoder_multiplier);
 
     // Gripper action clients — created per robot arm when hand is present in URDF
     model_updater_->has_hand_ = has_hand;

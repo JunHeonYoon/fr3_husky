@@ -1045,8 +1045,8 @@ void {class_name}::updateJointStates()
         left_pos /= n;  right_pos /= n;
         left_vel /= n;  right_vel /= n;
     }}
-    wheel_pos_ = Eigen::Vector2d(left_pos, right_pos);
-    wheel_vel_ = Eigen::Vector2d(left_vel, right_vel);
+    wheel_pos_ = Eigen::Vector2d(left_pos * params_.wheel_encoder_multiplier, right_pos * params_.wheel_encoder_multiplier);
+    wheel_vel_ = Eigen::Vector2d(left_vel * params_.wheel_encoder_multiplier, right_vel * params_.wheel_encoder_multiplier);
 }}
 
 void {class_name}::updateRobotData()

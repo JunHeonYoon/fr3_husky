@@ -75,10 +75,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512 #0.1  # 0.256  # 0.512
-      wheel_radius: 0.147 #0.1651 # 0.015
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link
@@ -152,10 +154,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.5708
-      wheel_radius: 0.1651 # 0.147
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 1.0 # 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link
@@ -236,10 +240,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.5708
-      wheel_radius: 0.1651 # 0.147
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 1.0 # 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link
@@ -318,10 +324,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512
-      wheel_radius: 0.147
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link
@@ -364,10 +372,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.5708
-      wheel_radius: 0.1651 # 0.147
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 1.0 # 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link
@@ -417,10 +427,12 @@
         - "front_right_wheel_joint"
         - "rear_right_wheel_joint"
 
-      wheel_separation: 0.512
-      wheel_radius: 0.147
-      wheel_separation_multiplier: 1.0
-      wheel_radius_multiplier: 0.5271
+      # TODO: parameter for simulation
+      wheel_separation: 0.55 # 0.55 for real robot, 0.512 for simulation
+      wheel_radius: 0.1651
+      wheel_separation_multiplier: 1.90339
+      wheel_radius_multiplier: 0.9455 # 0.9455 for real robot, 1.0 for simulation
+      wheel_encoder_multiplier: 0.5271 # 0.5271 for real robot, 1.0 for simulation
 
       odom_frame_id: odom
       base_frame_id: base_link

@@ -185,8 +185,8 @@ void FR3HuskyModelUpdater::updateJointStates()
         left_vel /= static_cast<double>(robot_handle_.left_wheels.size());
         right_vel /= static_cast<double>(robot_handle_.right_wheels.size());
     }
-    wheel_pos_ = Eigen::Vector2d(left_pos, right_pos);
-    wheel_vel_ = Eigen::Vector2d(left_vel, right_vel);
+    wheel_pos_ = Eigen::Vector2d(left_pos * wheel_encoder_multiplier_, right_pos * wheel_encoder_multiplier_);
+    wheel_vel_ = Eigen::Vector2d(left_vel * wheel_encoder_multiplier_, right_vel * wheel_encoder_multiplier_);
 }
 
 void FR3HuskyModelUpdater::updateRobotData()
