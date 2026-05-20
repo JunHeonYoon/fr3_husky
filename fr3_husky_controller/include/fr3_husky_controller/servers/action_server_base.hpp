@@ -143,6 +143,10 @@ public:
             std::bind(&ActionServerBase::handleGoal, this, std::placeholders::_1, std::placeholders::_2),
             std::bind(&ActionServerBase::handleCancel, this, std::placeholders::_1),
             std::bind(&ActionServerBase::handleAccepted, this, std::placeholders::_1));
+
+        feedback_timer_ = node_->create_wall_timer(
+            std::chrono::milliseconds(10),  // 100 Hz
+            std::bind(&ActionServerBase::feedbackTimerCallback, this));
     }
 
     ~ActionServerBase() override
@@ -301,28 +305,11 @@ protected:
         return std::make_shared<Result>();
     }
 
-    void publishFeedback(const FeedbackPtr& feedback) const
+    void publishFeedback(const FeedbackPtr& feedback)
     {
-        std::shared_ptr<GoalHandle> goal_handle;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            goal_handle = active_goal_;
-        }
-
-        if (goal_handle && feedback)
-        {
-            try
-            {
-                goal_handle->publish_feedback(feedback);
-            }
-            catch (const std::exception& e)
-            {
-                RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: %s", name_.c_str(), e.what());
-            }
-            catch (...)
-            {
-                RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: unknown exception", name_.c_str());
-            }
+        if (fb_mutex_.try_lock()) {
+            feedback_latest_ = feedback;
+            fb_mutex_.unlock();
         }
     }
 
@@ -528,6 +515,40 @@ private:
     std::shared_ptr<GoalHandle> preempt_goal_handle_;
     Goal preempt_goal_msg_{};
     std::atomic<bool> preempt_pending_{false};
+
+    mutable std::mutex fb_mutex_;
+    FeedbackPtr feedback_latest_{nullptr};
+    rclcpp::TimerBase::SharedPtr feedback_timer_;
+
+    void feedbackTimerCallback()
+    {
+        FeedbackPtr fb;
+        {
+            std::lock_guard<std::mutex> lock(fb_mutex_);
+            fb = feedback_latest_;
+        }
+        if (!fb) return;
+
+        std::shared_ptr<GoalHandle> goal_handle;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            goal_handle = active_goal_;
+        }
+        if (!goal_handle) return;
+
+        try
+        {
+            goal_handle->publish_feedback(fb);
+        }
+        catch (const std::exception& e)
+        {
+            RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: %s", name_.c_str(), e.what());
+        }
+        catch (...)
+        {
+            RCLCPP_WARN(node_->get_logger(), "[%s] publish_feedback skipped: unknown exception", name_.c_str());
+        }
+    }
 };
 
 #define REGISTER_FR3_ACTION_SERVER(ServerClass, server_name)                               \
