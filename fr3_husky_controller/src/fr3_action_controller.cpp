@@ -403,6 +403,9 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
         }
     #endif
 
+    struct timespec update_start_ts;
+    clock_gettime(CLOCK_MONOTONIC, &update_start_ts);
+
     play_time_ = get_node()->now().seconds();
     model_updater_->updateJointStates();
     model_updater_->updateRobotData();
@@ -468,6 +471,34 @@ controller_interface::return_type FR3ActionController::update(const rclcpp::Time
     else
     {
         if (idle_control_) idle_control_->compute(time, period);
+    }
+
+    struct timespec update_end_ts;
+    clock_gettime(CLOCK_MONOTONIC, &update_end_ts);
+    const double elapsed_ms = static_cast<double>(update_end_ts.tv_sec  - update_start_ts.tv_sec)  * 1e3
+                            + static_cast<double>(update_end_ts.tv_nsec - update_start_ts.tv_nsec) * 1e-6;
+
+    if (elapsed_ms > kUpdatePeriodMs)
+    {
+        ++update_overrun_count_;
+        update_overrun_sum_ms_ += elapsed_ms;
+        if (elapsed_ms > update_overrun_max_ms_) update_overrun_max_ms_ = elapsed_ms;
+    }
+    if (++update_cycle_count_ >= kUpdateWindowSize)
+    {
+        if (update_overrun_count_ >= kUpdateOverrunWarnThreshold)
+        {
+            const double avg_ms = update_overrun_sum_ms_ / update_overrun_count_;
+            LOGE(get_node(),
+                "[Controller] update() overran %.0f ms budget %d/%d times in the last %d cycles "
+                "(avg: %.3f ms, max: %.3f ms). Consider reducing computation load.",
+                kUpdatePeriodMs, update_overrun_count_, kUpdateWindowSize, kUpdateWindowSize,
+                avg_ms, update_overrun_max_ms_);
+        }
+        update_cycle_count_    = 0;
+        update_overrun_count_  = 0;
+        update_overrun_sum_ms_ = 0.0;
+        update_overrun_max_ms_ = 0.0;
     }
 
     return controller_interface::return_type::OK;
@@ -550,6 +581,8 @@ bool FR3ActionController::loadDRCGains(std::shared_ptr<drc::Manipulator::RobotCo
     robot_controller->setIDGain(task_id_kp, task_id_kv);
     robot_controller->setQPIKGain(qpik_tracking, qpik_mani_damping, qpik_mani_acc_damping);
     robot_controller->setQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping);
+    robot_controller->setHQPIKGain(qpik_tracking, qpik_mani_damping, qpik_mani_acc_damping);
+    robot_controller->setHQPIDGain(qpid_tracking, qpid_mani_vel_damping, qpid_mani_acc_damping);
     return true;
 }
 

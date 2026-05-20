@@ -2,9 +2,9 @@ import os
 import yaml
 import xacro
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, Shutdown
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, Shutdown
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -122,6 +122,7 @@ def _launch_setup(context, *args, **kwargs):
         cm_params.extend([
             {'mujoco_scene_xacro_path': mjcf_path},
             {'mujoco_scene_xacro_args': xacro_args},
+            os.path.join(pkg_ctrl, 'config', 'fr3_husky_ros_controllers_mujoco.yaml'),
         ])
 
     # robot_state_publisher: direct subscription when using MuJoCo
@@ -161,7 +162,10 @@ def _launch_setup(context, *args, **kwargs):
             executable='ros2_control_node',
             namespace=namespace,
             parameters=cm_params,
-            remappings=[('joint_states', joint_states_topic)],
+            remappings=[
+                ('joint_states', joint_states_topic),
+                (f'/{main_controller}/odom', '/odom'),
+            ],
             output='screen',
             on_exit=Shutdown(),
         ),
@@ -216,14 +220,36 @@ def _launch_setup(context, *args, **kwargs):
             parameters=[PathJoinSubstitution([FindPackageShare('husky_control'), 'config', 'teleop_logitech.yaml'])],
             remappings=[('joy', '/joy')],
         ),
-        # husky_control (robot_localization): real hardware only
+        # husky_control (robot_localization / EKF): runs on both real hw and mujoco
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution([FindPackageShare('husky_control'), 'launch', 'control.launch.py'])
             ),
-            condition=UnlessCondition(PythonExpression(["'", LaunchConfiguration('use_mujoco'), "' == 'true'"])),
         ),
     ]
+
+    # ZUPT: runs on both real hw and mujoco
+    # Real hw:  microstrain → imu/data → ZUPT → imu/data_zupt → EKF
+    # MuJoCo:   Singleton   → imu/data → ZUPT → imu/data_zupt → EKF
+    try:
+        imu_zupt_script = os.path.join(
+            get_package_share_directory('husky_control'),
+            'scripts', 'imu_zupt.py'
+        )
+        nodes.append(ExecuteProcess(cmd=['python3', imu_zupt_script], output='screen'))
+    except PackageNotFoundError:
+        pass
+
+    # microstrain IMU driver: real hardware only
+    if use_mujoco.lower() != 'true':
+        try:
+            microstrain_launch = os.path.join(
+                get_package_share_directory('microstrain_inertial_driver'),
+                'launch', 'microstrain_launch.py'
+            )
+            nodes.append(IncludeLaunchDescription(PythonLaunchDescriptionSource(microstrain_launch)))
+        except PackageNotFoundError:
+            pass
 
     # franka_robot_state_broadcaster: real hardware only (skip for fake or mujoco)
     for broadcaster_name in franka_broadcaster_names:
