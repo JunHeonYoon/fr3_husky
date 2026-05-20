@@ -174,6 +174,7 @@ class FR3HuskyActionController : public controller_interface::ControllerInterfac
         double publish_rate_ = 50.0;
 
         realtime_tools::RealtimeBuffer<std::pair<Eigen::Affine2d, Eigen::Vector3d>> mobi_state_pub_buf_;
+        realtime_tools::RealtimeBuffer<std::pair<Eigen::Affine2d, Eigen::Vector3d>> mobi_state_filtered_pub_buf_;
         rclcpp::TimerBase::SharedPtr odom_timer_;
 
         void publishFromMobileStateBuffer();

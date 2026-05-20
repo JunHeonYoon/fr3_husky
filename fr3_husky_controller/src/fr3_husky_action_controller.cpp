@@ -347,7 +347,8 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
 
     publish_rate_ = params_.publish_rate;
 
-    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
+    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_wheel_, model_updater_->base_vel_b_wheel_));
+    mobi_state_filtered_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
 
     joy_msg_received_.store(false, std::memory_order_release);
     estop_button_pressed_.store(false, std::memory_order_release);
@@ -577,7 +578,8 @@ controller_interface::return_type FR3HuskyActionController::update(const rclcpp:
     model_updater_->updateJointStates();
     model_updater_->updateRobotData();
 
-    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
+    mobi_state_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_wheel_, model_updater_->base_vel_b_wheel_));
+    mobi_state_filtered_pub_buf_.writeFromNonRT(std::make_pair(model_updater_->base_pose_w_, model_updater_->base_vel_b_));
 
     // 1. Deactivate current server if it is done or canceled.
     if (active_server_)
@@ -824,22 +826,30 @@ bool FR3HuskyActionController::setJointIndex(const std::string& urdf_xml, drc::M
 
 void FR3HuskyActionController::publishFromMobileStateBuffer()
 {
-    const std::pair<Eigen::Affine2d, Eigen::Vector3d> s = *mobi_state_pub_buf_.readFromRT();
-    const Eigen::Affine2d base_pose_w = s.first;
-    const Eigen::Vector3d base_vel_b = s.second;
+    // /odom topic: raw wheel odometry (independent EKF input, no feedback loop)
+    const std::pair<Eigen::Affine2d, Eigen::Vector3d> s_raw = *mobi_state_pub_buf_.readFromRT();
+    const Eigen::Affine2d base_pose_raw = s_raw.first;
+    const Eigen::Vector3d base_vel_raw  = s_raw.second;
 
-    // yaw from pose
-    const double yaw = Eigen::Rotation2Dd(base_pose_w.linear()).angle();
+    const double yaw_raw = Eigen::Rotation2Dd(base_pose_raw.linear()).angle();
+    tf2::Quaternion q_raw;
+    q_raw.setRPY(0.0, 0.0, yaw_raw);
 
-    tf2::Quaternion q;
-    q.setRPY(0.0, 0.0, yaw);
+    // TF odom → base_link: filtered pose when available, else raw wheel
+    const std::pair<Eigen::Affine2d, Eigen::Vector3d> s_filt = *mobi_state_filtered_pub_buf_.readFromRT();
+    const Eigen::Affine2d base_pose_tf = s_filt.first;
 
+    const double yaw_tf = Eigen::Rotation2Dd(base_pose_tf.linear()).angle();
+    tf2::Quaternion q_tf;
+    q_tf.setRPY(0.0, 0.0, yaw_tf);
 
-    // Odometry publish 
+    const rclcpp::Time now = get_node()->now();
+
+    // Odometry publish (raw wheel → EKF input)
     if (odometry_publisher_)
     {
         nav_msgs::msg::Odometry msg;
-        msg.header.stamp = get_node()->now();   
+        msg.header.stamp    = now;
         msg.header.frame_id = params_.odom_frame_id;
         msg.child_frame_id  = params_.base_frame_id;
 
@@ -853,35 +863,35 @@ void FR3HuskyActionController::publishFromMobileStateBuffer()
             msg.twist.covariance[diag] = params_.twist_covariance_diagonal[i];
         }
 
-        msg.pose.pose.position.x = base_pose_w.translation()(0);
-        msg.pose.pose.position.y = base_pose_w.translation()(1);
-        msg.pose.pose.orientation.x = q.x();
-        msg.pose.pose.orientation.y = q.y();
-        msg.pose.pose.orientation.z = q.z();
-        msg.pose.pose.orientation.w = q.w();
+        msg.pose.pose.position.x    = base_pose_raw.translation()(0);
+        msg.pose.pose.position.y    = base_pose_raw.translation()(1);
+        msg.pose.pose.orientation.x = q_raw.x();
+        msg.pose.pose.orientation.y = q_raw.y();
+        msg.pose.pose.orientation.z = q_raw.z();
+        msg.pose.pose.orientation.w = q_raw.w();
 
-        msg.twist.twist.linear.x  = base_vel_b(0);
-        msg.twist.twist.angular.z = base_vel_b(2);
+        msg.twist.twist.linear.x  = base_vel_raw(0);
+        msg.twist.twist.angular.z = base_vel_raw(2);
 
         odometry_publisher_->publish(msg);
     }
 
-    // TF publish
+    // TF publish: odom → base_link (filtered pose for accurate robot model in RViz)
     if (odometry_transform_publisher_)
     {
         tf2_msgs::msg::TFMessage tfm;
         tfm.transforms.resize(1);
         auto & t = tfm.transforms[0];
 
-        t.header.stamp = get_node()->now();
+        t.header.stamp    = now;
         t.header.frame_id = params_.odom_frame_id;
         t.child_frame_id  = params_.base_frame_id;
-        t.transform.translation.x = base_pose_w.translation()(0);
-        t.transform.translation.y = base_pose_w.translation()(1);
-        t.transform.rotation.x = q.x();
-        t.transform.rotation.y = q.y();
-        t.transform.rotation.z = q.z();
-        t.transform.rotation.w = q.w();
+        t.transform.translation.x = base_pose_tf.translation()(0);
+        t.transform.translation.y = base_pose_tf.translation()(1);
+        t.transform.rotation.x = q_tf.x();
+        t.transform.rotation.y = q_tf.y();
+        t.transform.rotation.z = q_tf.z();
+        t.transform.rotation.w = q_tf.w();
 
         odometry_transform_publisher_->publish(tfm);
     }
