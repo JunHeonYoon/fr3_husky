@@ -3,7 +3,7 @@
 
     <xacro:macro name="husky_base_srdf" params="as_two_wheels:='false'">
 
-        <xacro:property name="as_two_wheels_val" value="$(arg as_two_wheels)"/>
+        <xacro:property name="as_two_wheels_val" value="${as_two_wheels}"/>
         <xacro:property name="wheel_suffix"
                         value="${'_dummy' if str(as_two_wheels_val).lower() == 'true' else ''}"/>
 
