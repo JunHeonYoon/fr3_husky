@@ -28,14 +28,14 @@
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
+    <!-- Weld the gripper fingers (no finger joints/actuators)? -->
+    <xacro:arg name="fix_finger" default="false" />
+
     <!-- Is base husky or just box-shaped? -->
     <xacro:arg name="mobile" default="false"/>
 
-    <!-- Attach RealSense D435i to both EEs? -->
-    <xacro:arg name="with_realsense" default="true"/>
-
-    <!-- Attach Azure Kinect to mobile base? -->
-    <xacro:arg name="with_azure" default="true"/>
+    <!-- Attach RealSense D435i to both EEs & Azure Kinect to mobile base -->
+    <xacro:arg name="camera" default="false"/>
 
     <!-- RealSense D435i resolution -->
     <xacro:arg name="d435i_color_width"  default="1280"/>
@@ -84,6 +84,7 @@
             dynamics="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/dynamics.yaml')}"
             accelerometer_config="${xacro.load_yaml('$(find franka_description)/mjcf/robots/fr3/accelerometers.yaml')}"
             hand="$(arg hand)"
+            fix_finger="$(arg fix_finger)"
             ee_id="franka_hand"
             xyz_ee="0 0 0"
             rpy_ee="0 0 ${-pi/4}"
@@ -110,7 +111,7 @@
             hand_vis_mesh_materials="['off_white','black','black','white','off_white']"
             finger_vis_mesh_materials="['off_white','black']">
             <cam_body>
-                <xacro:if value="$(arg with_realsense)">
+                <xacro:if value="$(arg camera)">
                     <xacro:realsense_d435i_mjcf prefix="${arm_prefix}" ee2cam_tf="${ee2cam_tf}"
                         color_width="$(arg d435i_color_width)"
                         color_height="$(arg d435i_color_height)"
@@ -170,10 +171,10 @@
         <xacro:franka_hand_assets/>
         <xacro:husky_assets/>
         <xacro:roas_structure_assets/>
-        <xacro:if value="$(arg with_realsense)">
+        <xacro:if value="$(arg camera)">
             <xacro:d435i_assets/>
         </xacro:if>
-        <xacro:if value="$(arg with_azure)">
+        <xacro:if value="$(arg camera)">
             <xacro:azure_kinect_assets/>
         </xacro:if>
     </asset>
@@ -205,7 +206,7 @@
                                         rpy="0 0 -0.523598776"
                                         ee2cam_tf="${ee2cam_right_tf}"/>
 
-                    <xacro:if value="$(arg with_azure)">
+                    <xacro:if value="$(arg camera)">
                         <xacro:azure_kinect_mjcf prefix="top" base2cam_tf="${base2cam_tf}"
                             color_width="$(arg azure_color_width)"
                             color_height="$(arg azure_color_height)"
@@ -243,8 +244,10 @@
 
     <!-- Hand actuators (left + right) -->
     <xacro:if value="${'$(arg hand)' == 'true'}">
-        <xacro:franka_hand_actuator arm_id="$(arg arm_id)" arm_prefix="left" />
-        <xacro:franka_hand_actuator arm_id="$(arg arm_id)" arm_prefix="right" />
+        <xacro:unless value="$(arg fix_finger)">
+            <xacro:franka_hand_actuator arm_id="$(arg arm_id)" arm_prefix="left" />
+            <xacro:franka_hand_actuator arm_id="$(arg arm_id)" arm_prefix="right" />
+        </xacro:unless>
     </xacro:if>
 
 </mujoco>

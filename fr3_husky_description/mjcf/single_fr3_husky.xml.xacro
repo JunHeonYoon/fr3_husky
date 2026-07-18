@@ -31,11 +31,8 @@
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
-    <!-- Attach RealSense D435i to EE? -->
-    <xacro:arg name="with_realsense" default="true"/>
-
-    <!-- Attach Azure Kinect to mobile base? -->
-    <xacro:arg name="with_azure" default="true"/>
+    <!-- Attach RealSense D435i to both EEs & Azure Kinect to mobile base -->
+    <xacro:arg name="camera" default="false"/>
 
     <!-- RealSense D435i resolution -->
     <xacro:arg name="d435i_color_width"  default="1280"/>
@@ -102,10 +99,10 @@
         <xacro:franka_hand_assets/>
         <xacro:husky_assets/>
         <xacro:roas_structure_assets/>
-        <xacro:if value="$(arg with_realsense)">
+        <xacro:if value="$(arg camera)">
             <xacro:d435i_assets/>
         </xacro:if>
-        <xacro:if value="$(arg with_azure)">
+        <xacro:if value="$(arg camera)">
             <xacro:azure_kinect_assets/>
         </xacro:if>
     </asset>
@@ -170,7 +167,7 @@
                         hand_vis_mesh_materials="['off_white','black','black','white','off_white']"
                         finger_vis_mesh_materials="['off_white','black']">
                         <cam_body>
-                            <xacro:if value="$(arg with_realsense)">
+                            <xacro:if value="$(arg camera)">
                                 <xacro:realsense_d435i_mjcf prefix="$(arg side)" ee2cam_tf="${ee2cam_tf}"
                                     color_width="$(arg d435i_color_width)"
                                     color_height="$(arg d435i_color_height)"
@@ -180,7 +177,7 @@
                         </cam_body>
                     </xacro:franka_robot>
 
-                    <xacro:if value="$(arg with_azure)">
+                    <xacro:if value="$(arg camera)">
                         <xacro:azure_kinect_mjcf prefix="top" base2cam_tf="${base2cam_tf}"
                             color_width="$(arg azure_color_width)"
                             color_height="$(arg azure_color_height)"

@@ -14,6 +14,9 @@
 
     <!-- Should self-collision be enabled? -->
     <xacro:arg name="with_sc" default="false" />
+
+    <!-- Add camera(top azure kinect, left/right d435i)? -->
+    <xacro:arg name="camera" default="false" />
     <!-- ============================================================= -->
 
     <xacro:franka_arm_srdf arm_id="fr3"
