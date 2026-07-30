@@ -63,6 +63,11 @@ namespace std
 #include <fr3_husky_controller/utils/robot_utils.hpp>
 #include <fr3_husky_controller/model/fr3_husky_model_updater.hpp>
 
+#include <pinocchio/fwd.hpp>
+#include <pinocchio/multibody/data.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
+
 #include "dyros_robot_controller/mobile_manipulator/robot_data.h"
 #include "dyros_robot_controller/mobile_manipulator/robot_controller.h"
 
