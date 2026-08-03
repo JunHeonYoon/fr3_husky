@@ -4,7 +4,7 @@
   <!-- Box-shaped base as a table -->
   <xacro:macro name="box_base" params="base_prefix:='' no_prefix:=false">
 
-    <link name="${base_prefix}base">
+    <link name="${base_prefix}base_link">
       <visual>
         <origin xyz="0 0 -0.365" rpy="0 0 0"/>
         <geometry>

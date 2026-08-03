@@ -221,11 +221,15 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     pinocchio::Data pin_data = pinocchio::Data(pin_model);
 
     bool has_hand = false;
+    bool has_azure = false;
+    bool has_d435i = false;
 
     for (const auto& frame : pin_model.frames)
     {
         if (frame.name.find("hand") != std::string::npos) has_hand = true;
-        if (has_hand) break;
+        if (frame.name.find("azure") != std::string::npos) has_azure = true;
+        if (frame.name.find("d435i") != std::string::npos) has_d435i = true;
+        if (has_hand && has_azure && has_d435i) break;
     }
 
     // initialize dyros_robot_data & controller
@@ -234,6 +238,8 @@ CallbackReturn FR3HuskyActionController::on_configure(const rclcpp_lifecycle::St
     std::ostringstream segmentation_args;
     segmentation_args << " with_sc:=true"
                       << " hand:=" << (has_hand ? "true" : "false")
+                      << " use_azure:=" << (has_azure ? "true" : "false")
+                      << " use_d435i:=" << (has_d435i ? "true" : "false")
                       << " as_two_wheels:=true"
                       << " ros2_control:=false"
                       << " use_fake_hardware:=false"

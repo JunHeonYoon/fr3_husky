@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dual_fr3">
     <xacro:include filename="$(find franka_description)/robots/common/franka_multi_robot.xacro"/>
     <xacro:include filename="$(find fr3_husky_description)/robots/realsense_d435i.urdf.xacro"/>
     <xacro:include filename="$(find fr3_husky_description)/robots/azure_kinect.urdf.xacro"/>
-
-    <!-- base xacro includes -->
     <xacro:include filename="$(find fr3_husky_description)/robots/box_base.xacro"/>
     <xacro:include filename="$(find fr3_husky_description)/robots/husky_base.xacro"/>
 
@@ -31,6 +29,12 @@
 
     <!-- Use franka hand finger joint as fixed? -->
     <xacro:arg name="fix_finger" default="false"/>
+
+    <!-- Add Azure Kinect to the Husky Base? -->
+    <xacro:arg name="use_azure" default="true" />
+
+    <!-- Add Intel RealSense D435i to both EE of FR3? ? -->
+    <xacro:arg name="use_d435i" default="true" />
     <!-- ============================================================= -->
 
     <xacro:arg name="robot_ips" default="['172.16.5.5','172.16.6.6']" />
@@ -47,80 +51,89 @@
                     value="${'0 0 0.523598776;0 0 -0.523598776' if '$(arg mobile)' == 'true' else '0 0 0;0 0 0'}" />
 
     <xacro:if value="$(arg mobile)">
-        <xacro:husky_base single_mani="false"/>
+        <xacro:husky_base prefix="" single_mani="false" fixed_wheels="true" />
     </xacro:if>
 
     <xacro:unless value="$(arg mobile)">
-        <link name="base"/>
+        <link name="base_link"/>
         <xacro:box_base no_prefix="false" base_prefix="left_"/>
         <xacro:box_base no_prefix="false" base_prefix="right_"/>
 
         <joint name="tmp_left_base_joint" type="fixed">
-            <parent link="base"/>
-            <child link="left_base"/>
+            <parent link="base_link"/>
+            <child link="left_base_link"/>
             <origin rpy="0 0 0" xyz="0 0.34 0"/>
         </joint>
         <joint name="tmp_right_base_joint" type="fixed">
-            <parent link="base"/>
-            <child link="right_base"/>
+            <parent link="base_link"/>
+            <child link="right_base_link"/>
             <origin rpy="0 0 0" xyz="0 -0.34 0"/>
         </joint>
     </xacro:unless>
 
     <joint name="tmp_base_joint" type="fixed">
-        <parent link="base"/>
+        <parent link="base_link"/>
         <child link="tmp_base"/>
-        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <xacro:if value="$(arg mobile)">
+            <origin rpy="0 0 0" xyz="0.345 0 0.26"/>
+        </xacro:if>
+        <xacro:unless value="$(arg mobile)">
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+        </xacro:unless>
     </joint>
 
     <xacro:if value="$(arg mobile)">
-        <!-- Load base->camera TF calibration -->
-        <xacro:property name="base2cam_tf"  value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_base2cam.yaml')}"/>
-        <xacro:azure_kinect is_reverse="true" prefix="top"/>
-    
-        <joint name="base2top_cam" type="fixed">
-            <parent link="mobile_base"/>
-            <child link="top_azure_rgb_link"/>
-            <origin
-                xyz="${base2cam_tf['translation'][0]} ${base2cam_tf['translation'][1]} ${base2cam_tf['translation'][2]}"
-                rpy="${base2cam_tf['euler_zyx'][0]}   ${base2cam_tf['euler_zyx'][1]}   ${base2cam_tf['euler_zyx'][2]}"/>
-        </joint>
+        <xacro:if value="$(arg use_azure)">
+            <!-- Load base->camera TF calibration -->
+            <xacro:property name="base2cam_tf"  value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_base2cam.yaml')}"/>
+            <xacro:azure_kinect is_reverse="true" prefix="top"/>
+        
+            <joint name="base2top_cam" type="fixed">
+                <parent link="base_link"/>
+                <child link="top_azure_rgb_link"/>
+                <origin
+                    xyz="${base2cam_tf['translation'][0]} ${base2cam_tf['translation'][1]} ${base2cam_tf['translation'][2]}"
+                    rpy="${base2cam_tf['euler_zyx'][0]}   ${base2cam_tf['euler_zyx'][1]}   ${base2cam_tf['euler_zyx'][2]}"/>
+            </joint>
+        </xacro:if>
     </xacro:if>
 
-    <!-- Load ee→camera TF calibration for each arm -->
-    <xacro:property name="ee2cam_tf_left"
-        value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_left.yaml')}"/>
-    <xacro:property name="ee2cam_tf_right"
-        value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_right.yaml')}"/>
-
-    <xacro:realsense_d435i is_reverse="true" prefix="left"/>
-    <xacro:realsense_d435i is_reverse="true" prefix="right"/>
-
-    <joint name="left_ee2d435i" type="fixed">
-        <xacro:if value="$(arg hand)">
-            <parent link="left_fr3_hand"/>
-        </xacro:if>
-        <xacro:unless value="$(arg hand)">
-            <parent link="left_fr3_link8"/>
-        </xacro:unless>
-        <child link="left_d435i_color_optical_frame"/>
-        <origin
-            xyz="${ee2cam_tf_left['translation'][0]} ${ee2cam_tf_left['translation'][1]} ${ee2cam_tf_left['translation'][2]}"
-            rpy="${ee2cam_tf_left['euler_zyx'][0]} ${ee2cam_tf_left['euler_zyx'][1]} ${ee2cam_tf_left['euler_zyx'][2]}"/>
-    </joint>
-
-    <joint name="right_ee2d435i" type="fixed">
-        <xacro:if value="$(arg hand)">
-            <parent link="right_fr3_hand"/>
-        </xacro:if>
-        <xacro:unless value="$(arg hand)">
-            <parent link="right_fr3_link8"/>
-        </xacro:unless>
-        <child link="right_d435i_color_optical_frame"/>
-        <origin
-            xyz="${ee2cam_tf_right['translation'][0]} ${ee2cam_tf_right['translation'][1]} ${ee2cam_tf_right['translation'][2]}"
-            rpy="${ee2cam_tf_right['euler_zyx'][0]} ${ee2cam_tf_right['euler_zyx'][1]} ${ee2cam_tf_right['euler_zyx'][2]}"/>
-    </joint>
+    <!-- Load ee->camera TF calibration for each arm -->
+    <xacro:if value="$(arg use_d435i)">
+         <xacro:property name="ee2cam_tf_left"
+             value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_left.yaml')}"/>
+         <xacro:property name="ee2cam_tf_right"
+             value="${xacro.load_yaml('$(find fr3_husky_description)/config/TF_ee2cam_right.yaml')}"/>
+     
+         <xacro:realsense_d435i is_reverse="true" prefix="left"/>
+         <xacro:realsense_d435i is_reverse="true" prefix="right"/>
+     
+         <joint name="left_ee2d435i" type="fixed">
+             <xacro:if value="$(arg hand)">
+                 <parent link="left_fr3_hand"/>
+             </xacro:if>
+             <xacro:unless value="$(arg hand)">
+                 <parent link="left_fr3_link8"/>
+             </xacro:unless>
+             <child link="left_d435i_color_optical_frame"/>
+             <origin
+                 xyz="${ee2cam_tf_left['translation'][0]} ${ee2cam_tf_left['translation'][1]} ${ee2cam_tf_left['translation'][2]}"
+                 rpy="${ee2cam_tf_left['euler_zyx'][0]} ${ee2cam_tf_left['euler_zyx'][1]} ${ee2cam_tf_left['euler_zyx'][2]}"/>
+         </joint>
+     
+         <joint name="right_ee2d435i" type="fixed">
+             <xacro:if value="$(arg hand)">
+                 <parent link="right_fr3_hand"/>
+             </xacro:if>
+             <xacro:unless value="$(arg hand)">
+                 <parent link="right_fr3_link8"/>
+             </xacro:unless>
+             <child link="right_d435i_color_optical_frame"/>
+             <origin
+                 xyz="${ee2cam_tf_right['translation'][0]} ${ee2cam_tf_right['translation'][1]} ${ee2cam_tf_right['translation'][2]}"
+                 rpy="${ee2cam_tf_right['euler_zyx'][0]} ${ee2cam_tf_right['euler_zyx'][1]} ${ee2cam_tf_right['euler_zyx'][2]}"/>
+         </joint>
+    </xacro:if>
 
     <xacro:franka_multi_robot
         arm_ids="${arm_ids_str}"
