@@ -30,6 +30,9 @@
     <!-- Use franka hand finger joint as fixed? -->
     <xacro:arg name="fix_finger" default="false"/>
 
+    <!-- Is the end-effector a UMI tip? -->
+    <xacro:arg name="umi_tip" default="true" />
+
     <!-- Add Azure Kinect to the Husky Base? -->
     <xacro:arg name="use_azure" default="true" />
 
@@ -152,7 +155,7 @@
         special_connection=""
         xyz_ee="0 0 0"
         rpy_ee="0 0 ${-pi/4}"
-        tcp_xyz="0 0 0.1034"
+        tcp_xyz="${'0 0 0.1774' if '$(arg umi_tip)' == 'true' else '0 0 0.1034'}"
         tcp_rpy="0 0 0"
         safety_distance="0.015"
         with_sc="$(arg with_sc)"
@@ -163,6 +166,7 @@
         gazebo_effort="false"
         connected_to="tmp_base"
         fix_finger="$(arg fix_finger)"
+        umi_tip="$(arg umi_tip)"
     />
 
 </robot>

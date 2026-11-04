@@ -29,6 +29,9 @@
     <!-- Should an end-effector be mounted at the flange? -->
     <xacro:arg name="hand" default="true" />
 
+    <!-- Is the end-effector a UMI tip? -->
+    <xacro:arg name="umi_tip" default="true" />
+
     <!-- Add Azure Kinect to the Husky Base? -->
     <xacro:arg name="use_azure" default="true" />
 
@@ -84,8 +87,9 @@
             ee_id="franka_hand"
             xyz_ee="0 0 0"
             rpy_ee="0 0 ${-pi/4}"
-            tcp_xyz="0 0 0.1034"
+            tcp_xyz="${'0 0 0.1774' if '$(arg umi_tip)' == 'true' else '0 0 0.1034'}"
             tcp_rpy="0 0 0"
+            umi_tip="$(arg umi_tip)"
             link0_vis_mesh_indices="[0,1,2,3,4,5,6]"
             link1_vis_mesh_indices="[0]"
             link2_vis_mesh_indices="[0]"
@@ -164,7 +168,7 @@
         <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2" />
 
         <xacro:fr3_assets arm_id="$(arg arm_id)"/>
-        <xacro:franka_hand_assets/>
+        <xacro:franka_hand_assets umi_tip="$(arg umi_tip)"/>
         <xacro:husky_assets/>
         <xacro:roas_structure_assets/>
         <xacro:if value="$(arg use_d435i)">
