@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(fr3_husky_controller)
 
+set(Boost_USE_DEBUG_RUNTIME OFF)
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,6 +38,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     geometry_msgs
     sensor_msgs
     urdf
+    pinocchio
     dyros_robot_controller
     fr3_husky_msgs
     franka_msgs
@@ -123,6 +126,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
                       rclcpp_action::rclcpp_action
                       rclcpp_lifecycle::rclcpp_lifecycle
                       urdf::urdf
+                      pinocchio::pinocchio
                       dyros_robot_controller::dyros_robot_controller
                       Franka::Franka
 )
@@ -143,6 +147,7 @@ ament_target_dependencies(${PROJECT_NAME} PUBLIC
     geometry_msgs
     sensor_msgs
     urdf
+    pinocchio
     dyros_robot_controller
     fr3_husky_msgs
     franka_msgs

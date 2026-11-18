@@ -70,7 +70,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        left_base:
+        left_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -186,7 +186,7 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        right_base:
+        right_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false

@@ -48,6 +48,10 @@ constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 #include <fr3_husky_controller/utils/robot_utils.hpp>
 #include <fr3_husky_controller/model/fr3_model_updater.hpp>
 
+#include <pinocchio/fwd.hpp>
+#include <pinocchio/multibody/data.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
 #include "dyros_robot_controller/manipulator/robot_data.h"
 #include "dyros_robot_controller/manipulator/robot_controller.h"
 

@@ -60,6 +60,8 @@ def _launch_setup(context, *args, **kwargs):
     )
     use_mujoco           = LaunchConfiguration('use_mujoco').perform(context)
     load_gripper         = LaunchConfiguration('load_gripper').perform(context)
+    load_azure           = LaunchConfiguration('load_azure').perform(context)
+    load_d435i           = LaunchConfiguration('load_d435i').perform(context)
     use_fake_hardware    = LaunchConfiguration('use_fake_hardware').perform(context)
     fake_sensor_commands = LaunchConfiguration('fake_sensor_commands').perform(context)
     namespace            = LaunchConfiguration('namespace').perform(context)
@@ -85,6 +87,7 @@ def _launch_setup(context, *args, **kwargs):
         xacro_mappings = {
             'ros2_control': 'true', 'with_sc': 'false', 'fix_finger': 'false',
             'hand': load_gripper, 'virtual_joint': 'false', 'as_two_wheels': 'false',
+            'use_azure': load_azure, 'use_d435i': load_d435i,
             'use_mujoco': use_mujoco, 'use_fake_hardware': use_fake_hardware,
             'fake_sensor_commands': fake_sensor_commands,
         }
@@ -95,6 +98,7 @@ def _launch_setup(context, *args, **kwargs):
             'ros2_control': 'true', 'with_sc': 'false', 'fix_finger': 'false',
             'side': robot_sides[0], 'hand': load_gripper,
             'virtual_joint': 'false', 'as_two_wheels': 'false',
+            'use_azure': load_azure, 'use_d435i': load_d435i,
             'use_mujoco': use_mujoco, 'use_fake_hardware': use_fake_hardware,
             'fake_sensor_commands': fake_sensor_commands,
         }
@@ -116,7 +120,7 @@ def _launch_setup(context, *args, **kwargs):
     # controller_manager parameters
     cm_params = [controllers_yaml, {'robot_description': robot_description}]
     if use_mujoco.lower() == 'true':
-        xacro_args = f' hand:={load_gripper}'
+        xacro_args = f' hand:={load_gripper} use_azure:={load_azure} use_d435i:={load_d435i}'
         if not is_dual:
             xacro_args += f' side:={robot_sides[0]}'
         cm_params.extend([
@@ -426,12 +430,14 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('robot_side',        default_value='left',  description="Robot side: left, right, or dual"),
-        DeclareLaunchArgument('namespace',         default_value='',      description='Namespace for the robot'),
-        DeclareLaunchArgument('load_gripper',      default_value='true',  description='Load gripper (true/false)'),
-        DeclareLaunchArgument('use_mujoco',        default_value='false', description='Use MuJoCo hardware interface'),
-        DeclareLaunchArgument('use_fake_hardware', default_value='false', description='Use fake hardware'),
+        DeclareLaunchArgument('robot_side',           default_value='left',  description="Robot side: left, right, or dual"),
+        DeclareLaunchArgument('namespace',            default_value='',      description='Namespace for the robot'),
+        DeclareLaunchArgument('load_gripper',         default_value='true',  description='Load gripper (true/false)'),
+        DeclareLaunchArgument('load_azure',           default_value='false', description='Load Azure Kinect (true/false)'),
+        DeclareLaunchArgument('load_d435i',           default_value='false', description='Load D435i camera (true/false)'),
+        DeclareLaunchArgument('use_mujoco',           default_value='false', description='Use MuJoCo hardware interface'),
+        DeclareLaunchArgument('use_fake_hardware',    default_value='false', description='Use fake hardware'),
         DeclareLaunchArgument('fake_sensor_commands', default_value='false', description='Fake sensor commands'),
-        DeclareLaunchArgument('launch_move_group',   default_value='true', description='Launch move_group (needed for fr3_husky_move_to_joint)'),
+        DeclareLaunchArgument('launch_move_group',    default_value='true',  description='Launch move_group (needed for fr3_husky_move_to_joint)'),
         OpaqueFunction(function=_launch_setup),
     ])
